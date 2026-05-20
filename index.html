@@ -74,7 +74,7 @@
 
 <div class="info">
 
-  <h3>GPS Tracking</h3>
+  <h3 id="appTitle"></h3>
 
   <div id="status">
     Warte auf Standort...
@@ -100,6 +100,22 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
+
+// ------------------------------------
+// VERSION
+// ------------------------------------
+
+const APP_VERSION = "V1";
+
+// ------------------------------------
+// Titel setzen
+// ------------------------------------
+
+document.addEventListener("DOMContentLoaded", () => {
+
+  document.getElementById("appTitle").innerText =
+    `GPS Tracking ${APP_VERSION}`;
+});
 
 // ------------------------------------
 // Variablen
