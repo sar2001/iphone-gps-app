@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <title>iPhone GPS Map</title>
+
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"
+  />
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
+    }
+
+    #map {
+      width: 100%;
+      height: 100vh;
+    }
+
+    .info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      background: white;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      width: 260px;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="info">
+  <h3>GPS Tracking</h3>
+
+  <div id="status">
+    Warte auf Standort...
+  </div>
+
+  <button onclick="startTracking()">
+    Tracking starten
+  </button>
+
+  <button onclick="stopTracking()">
+    Tracking stoppen
+  </button>
+</div>
+
+<div id="map"></div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+let map;
+let marker;
+let circle;
+let watchId;
+
+// Karte initialisieren
+map = L.map('map').setView([51.505, -0.09], 13);
+
+// OpenStreetMap Layer
+L.tileLayer(
+  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {
+    attribution: '&copy; OpenStreetMap contributors'
+  }
+).addTo(map);
+
+// Marker
+marker = L.marker([51.505, -0.09]).addTo(map);
+
+// Genauigkeitskreis
+circle = L.circle([51.505, -0.09], {
+  radius: 50
+}).addTo(map);
+
+function startTracking() {
+
+  if (!navigator.geolocation) {
+    alert("Geolocation nicht unterstützt");
+    return;
+  }
+
+  watchId = navigator.geolocation.watchPosition(
+
+    (position) => {
+
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const accuracy = position.coords.accuracy;
+
+      // Marker aktualisieren
+      marker.setLatLng([lat, lng]);
+
+      // Kreis aktualisieren
+      circle.setLatLng([lat, lng]);
+      circle.setRadius(accuracy);
+
+      // Karte zentrieren
+      map.setView([lat, lng], 17);
+
+      // Popup
+      marker.bindPopup(`
+        <b>Du bist hier</b><br>
+        Genauigkeit: ${Math.round(accuracy)} m
+      `).openPopup();
+
+      // Status
+      document.getElementById("status").innerHTML = `
+        Breitengrad: ${lat.toFixed(6)}<br>
+        Längengrad: ${lng.toFixed(6)}<br>
+        Genauigkeit: ${Math.round(accuracy)} m
+      `;
+
+      console.log(position);
+    },
+
+    (error) => {
+
+      console.error(error);
+
+      switch(error.code) {
+
+        case error.PERMISSION_DENIED:
+          alert("Standortzugriff verweigert");
+          break;
+
+        case error.POSITION_UNAVAILABLE:
+          alert("Position nicht verfügbar");
+          break;
+
+        case error.TIMEOUT:
+          alert("Zeitüberschreitung");
+          break;
+
+        default:
+          alert("Unbekannter Fehler");
+      }
+    },
+
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+}
+
+function stopTracking() {
+
+  if (watchId) {
+    navigator.geolocation.clearWatch(watchId);
+
+    document.getElementById("status").innerHTML =
+      "Tracking gestoppt";
+  }
+}
+</script>
+
+</body>
+</html>
