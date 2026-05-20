@@ -2,7 +2,11 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
 
   <title>iPhone GPS Tracker</title>
 
@@ -15,40 +19,85 @@
   <style>
 
     html, body {
+
       margin: 0;
       padding: 0;
+
       height: 100%;
+
       font-family: Arial, sans-serif;
     }
 
     #map {
+
       width: 100%;
       height: 100vh;
     }
 
-    .info {
+    /* ------------------------------------ */
+    /* Side Panel */
+    /* ------------------------------------ */
 
-      position: absolute;
+    .side-panel {
+
+      position: fixed;
+
+      top: 0;
+      left: -340px;
+
+      width: 320px;
+      height: 100%;
+
+      background: white;
+
+      z-index: 2000;
+
+      padding: 16px;
+
+      box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+
+      transition: left 0.3s ease;
+
+      overflow-y: auto;
+    }
+
+    .side-panel.open {
+
+      left: 0;
+    }
+
+    /* ------------------------------------ */
+    /* Menü Button */
+    /* ------------------------------------ */
+
+    #menuButton {
+
+      position: fixed;
 
       top: 10px;
       left: 10px;
 
-      z-index: 1000;
+      z-index: 3000;
+
+      width: 50px;
+      height: 50px;
+
+      border: none;
+
+      border-radius: 10px;
 
       background: white;
 
-      padding: 12px;
+      font-size: 28px;
 
-      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
 
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
-
-      width: 320px;
-
-      max-height: 85vh;
-
-      overflow-y: auto;
+      cursor: pointer;
     }
+
+    /* ------------------------------------ */
+    /* Buttons */
+    /* ------------------------------------ */
 
     button {
 
@@ -72,7 +121,11 @@
 
 <body>
 
-<div class="info">
+<!-- ------------------------------------ -->
+<!-- Side Panel -->
+<!-- ------------------------------------ -->
+
+<div id="sidePanel" class="side-panel">
 
   <h3 id="appTitle"></h3>
 
@@ -94,6 +147,18 @@
 
 </div>
 
+<!-- ------------------------------------ -->
+<!-- Menü Button -->
+<!-- ------------------------------------ -->
+
+<button id="menuButton" onclick="togglePanel()">
+☰
+</button>
+
+<!-- ------------------------------------ -->
+<!-- Karte -->
+<!-- ------------------------------------ -->
+
 <div id="map"></div>
 
 <!-- Leaflet -->
@@ -103,7 +168,6 @@
 
 // ------------------------------------
 // AUTOMATISCHE VERSION
-// zeigt immer letzte Änderung
 // ------------------------------------
 
 const APP_VERSION = document.lastModified;
@@ -123,7 +187,9 @@ document.addEventListener("DOMContentLoaded", () => {
 // ------------------------------------
 
 let map;
+
 let marker;
+
 let circle;
 
 let watchId;
@@ -180,8 +246,7 @@ if (savedRoute) {
 
 // ------------------------------------
 // GPS sofort starten
-// NUR Anzeige
-// KEIN Speichern
+// Nur Anzeige
 // ------------------------------------
 
 startLocationUpdates(false);
@@ -209,64 +274,42 @@ function startLocationUpdates(saveRoute = false) {
 
       const accuracy = position.coords.accuracy;
 
-      // ------------------------------------
       // Marker aktualisieren
-      // ------------------------------------
-
       marker.setLatLng([lat, lng]);
 
-      // ------------------------------------
       // Kreis aktualisieren
-      // ------------------------------------
-
       circle.setLatLng([lat, lng]);
 
       circle.setRadius(accuracy);
 
-      // ------------------------------------
       // Karte zentrieren
-      // ------------------------------------
-
       map.setView([lat, lng], 17);
 
-      // ------------------------------------
       // Popup
-      // ------------------------------------
-
       marker.bindPopup(`
         <b>Du bist hier</b><br>
         Genauigkeit: ${Math.round(accuracy)} m
       `).openPopup();
 
-      // ------------------------------------
-      // Route speichern NUR wenn aktiv
-      // ------------------------------------
-
+      // Route speichern
       if (saveRoute && trackingActive) {
 
-        // Punkt speichern
         routeCoordinates.push([lat, lng]);
 
-        // localStorage speichern
         localStorage.setItem(
           "savedRoute",
           JSON.stringify(routeCoordinates)
         );
 
-        // Alte Route entfernen
         if (routeLine) {
 
           map.removeLayer(routeLine);
         }
 
-        // Neue Route zeichnen
         routeLine = L.polyline(routeCoordinates).addTo(map);
       }
 
-      // ------------------------------------
       // Adresse holen
-      // ------------------------------------
-
       let address = "Adresse unbekannt";
 
       try {
@@ -287,10 +330,7 @@ function startLocationUpdates(saveRoute = false) {
         console.error(err);
       }
 
-      // ------------------------------------
       // Status anzeigen
-      // ------------------------------------
-
       document.getElementById("status").innerHTML = `
 
         <b>Breitengrad:</b><br>
@@ -310,7 +350,6 @@ function startLocationUpdates(saveRoute = false) {
 
         <b>Gespeicherte Punkte:</b><br>
         ${routeCoordinates.length}
-
       `;
     },
 
@@ -360,13 +399,11 @@ function enableRouteTracking() {
 
   trackingActive = true;
 
-  // Alte GPS Überwachung stoppen
   if (watchId) {
 
     navigator.geolocation.clearWatch(watchId);
   }
 
-  // GPS neu starten + speichern aktivieren
   startLocationUpdates(true);
 
   alert("Routenaufzeichnung gestartet");
@@ -380,13 +417,11 @@ function stopRouteTracking() {
 
   trackingActive = false;
 
-  // GPS stoppen
   if (watchId) {
 
     navigator.geolocation.clearWatch(watchId);
   }
 
-  // GPS neu starten OHNE speichern
   startLocationUpdates(false);
 
   alert("Routenaufzeichnung gestoppt");
@@ -409,6 +444,49 @@ function clearRoute() {
 
   alert("Route gelöscht");
 }
+
+// ------------------------------------
+// Side Panel öffnen/schließen
+// ------------------------------------
+
+function togglePanel() {
+
+  document
+    .getElementById("sidePanel")
+    .classList.toggle("open");
+}
+
+// ------------------------------------
+// Swipe erkennen
+// ------------------------------------
+
+let touchStartX = 0;
+
+document.addEventListener("touchstart", (e) => {
+
+  touchStartX = e.changedTouches[0].screenX;
+});
+
+document.addEventListener("touchend", (e) => {
+
+  const touchEndX = e.changedTouches[0].screenX;
+
+  // Nach rechts wischen = öffnen
+  if (touchEndX - touchStartX > 80) {
+
+    document
+      .getElementById("sidePanel")
+      .classList.add("open");
+  }
+
+  // Nach links wischen = schließen
+  if (touchStartX - touchEndX > 80) {
+
+    document
+      .getElementById("sidePanel")
+      .classList.remove("open");
+  }
+});
 
 </script>
 
