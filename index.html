@@ -31,10 +31,12 @@
       left: 10px;
       z-index: 1000;
       background: white;
-      padding: 10px;
-      border-radius: 10px;
+      padding: 12px;
+      border-radius: 12px;
       box-shadow: 0 0 10px rgba(0,0,0,0.2);
-      width: 260px;
+      width: 300px;
+      max-height: 80vh;
+      overflow-y: auto;
     }
 
     button {
@@ -42,6 +44,11 @@
       padding: 10px;
       margin-top: 8px;
       font-size: 16px;
+      cursor: pointer;
+    }
+
+    h3 {
+      margin-top: 0;
     }
   </style>
 </head>
@@ -70,6 +77,7 @@
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
+
 let map;
 let marker;
 let circle;
@@ -103,7 +111,7 @@ function startTracking() {
 
   watchId = navigator.geolocation.watchPosition(
 
-    (position) => {
+    async (position) => {
 
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
@@ -125,11 +133,38 @@ function startTracking() {
         Genauigkeit: ${Math.round(accuracy)} m
       `).openPopup();
 
-      // Status
+      // Adresse holen
+      let address = "Adresse unbekannt";
+
+      try {
+
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`
+        );
+
+        const data = await response.json();
+
+        if (data.display_name) {
+          address = data.display_name;
+        }
+
+      } catch (err) {
+        console.error(err);
+      }
+
+      // Status anzeigen
       document.getElementById("status").innerHTML = `
-        Breitengrad: ${lat.toFixed(6)}<br>
-        Längengrad: ${lng.toFixed(6)}<br>
-        Genauigkeit: ${Math.round(accuracy)} m
+        <b>Breitengrad:</b><br>
+        ${lat.toFixed(6)}<br><br>
+
+        <b>Längengrad:</b><br>
+        ${lng.toFixed(6)}<br><br>
+
+        <b>Genauigkeit:</b><br>
+        ${Math.round(accuracy)} m<br><br>
+
+        <b>Aktuelle Adresse:</b><br>
+        ${address}
       `;
 
       console.log(position);
@@ -169,12 +204,17 @@ function startTracking() {
 function stopTracking() {
 
   if (watchId) {
+
     navigator.geolocation.clearWatch(watchId);
 
     document.getElementById("status").innerHTML =
       "Tracking gestoppt";
   }
 }
+
+// Automatisch starten
+startTracking();
+
 </script>
 
 </body>
