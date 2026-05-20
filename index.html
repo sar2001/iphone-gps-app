@@ -102,10 +102,11 @@
 <script>
 
 // ------------------------------------
-// VERSION
+// AUTOMATISCHE VERSION
+// zeigt immer letzte Änderung
 // ------------------------------------
 
-const APP_VERSION = "V1";
+const APP_VERSION = document.lastModified;
 
 // ------------------------------------
 // Titel setzen
@@ -139,7 +140,10 @@ let routeLine;
 
 map = L.map('map').setView([51.505, -0.09], 13);
 
+// ------------------------------------
 // OpenStreetMap Layer
+// ------------------------------------
+
 L.tileLayer(
   'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
   {
@@ -147,10 +151,16 @@ L.tileLayer(
   }
 ).addTo(map);
 
+// ------------------------------------
 // Marker
+// ------------------------------------
+
 marker = L.marker([51.505, -0.09]).addTo(map);
 
+// ------------------------------------
 // Genauigkeitskreis
+// ------------------------------------
+
 circle = L.circle([51.505, -0.09], {
   radius: 50
 }).addTo(map);
@@ -300,6 +310,7 @@ function startLocationUpdates(saveRoute = false) {
 
         <b>Gespeicherte Punkte:</b><br>
         ${routeCoordinates.length}
+
       `;
     },
 
