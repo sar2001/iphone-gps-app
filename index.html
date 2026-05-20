@@ -200,6 +200,10 @@ let routeCoordinates = [];
 
 let routeLine;
 
+// Aktuelle Position
+let currentLat = null;
+let currentLng = null;
+
 // ------------------------------------
 // Karte initialisieren
 // ------------------------------------
@@ -273,6 +277,10 @@ function startLocationUpdates(saveRoute = false) {
       const lng = position.coords.longitude;
 
       const accuracy = position.coords.accuracy;
+
+      // Aktuelle Position speichern
+      currentLat = lat;
+      currentLng = lng;
 
       // Marker aktualisieren
       marker.setLatLng([lat, lng]);
@@ -350,6 +358,7 @@ function startLocationUpdates(saveRoute = false) {
 
         <b>Gespeicherte Punkte:</b><br>
         ${routeCoordinates.length}
+
       `;
     },
 
@@ -451,9 +460,27 @@ function clearRoute() {
 
 function togglePanel() {
 
-  document
-    .getElementById("sidePanel")
-    .classList.toggle("open");
+  const panel =
+    document.getElementById("sidePanel");
+
+  panel.classList.toggle("open");
+
+  // Wenn Menü geschlossen wird:
+  // auf aktuellen Standort zentrieren
+  if (!panel.classList.contains("open")) {
+
+    setTimeout(() => {
+
+      if (currentLat && currentLng) {
+
+        map.setView(
+          [currentLat, currentLng],
+          17
+        );
+      }
+
+    }, 300);
+  }
 }
 
 // ------------------------------------
@@ -485,6 +512,19 @@ document.addEventListener("touchend", (e) => {
     document
       .getElementById("sidePanel")
       .classList.remove("open");
+
+    // Nach Schließen auf Standort zentrieren
+    setTimeout(() => {
+
+      if (currentLat && currentLng) {
+
+        map.setView(
+          [currentLat, currentLng],
+          17
+        );
+      }
+
+    }, 300);
   }
 });
 
