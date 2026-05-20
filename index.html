@@ -29,11 +29,14 @@
     .info {
 
       position: absolute;
+
       top: 10px;
       left: 10px;
+
       z-index: 1000;
 
       background: white;
+
       padding: 12px;
 
       border-radius: 12px;
@@ -41,6 +44,7 @@
       box-shadow: 0 0 10px rgba(0,0,0,0.2);
 
       width: 320px;
+
       max-height: 85vh;
 
       overflow-y: auto;
@@ -76,11 +80,11 @@
     Warte auf Standort...
   </div>
 
-  <button onclick="startTracking()">
+  <button onclick="enableRouteTracking()">
     Tracking starten
   </button>
 
-  <button onclick="stopTracking()">
+  <button onclick="stopRouteTracking()">
     Tracking stoppen
   </button>
 
@@ -92,21 +96,31 @@
 
 <div id="map"></div>
 
-<!-- Leaflet JS -->
+<!-- Leaflet -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script>
 
+// ------------------------------------
+// Variablen
+// ------------------------------------
+
 let map;
 let marker;
 let circle;
+
 let watchId;
 
-// Route speichern
+let trackingActive = false;
+
 let routeCoordinates = [];
+
 let routeLine;
 
+// ------------------------------------
 // Karte initialisieren
+// ------------------------------------
+
 map = L.map('map').setView([51.505, -0.09], 13);
 
 // OpenStreetMap Layer
@@ -125,7 +139,10 @@ circle = L.circle([51.505, -0.09], {
   radius: 50
 }).addTo(map);
 
+// ------------------------------------
 // Gespeicherte Route laden
+// ------------------------------------
+
 const savedRoute = localStorage.getItem("savedRoute");
 
 if (savedRoute) {
@@ -135,7 +152,19 @@ if (savedRoute) {
   routeLine = L.polyline(routeCoordinates).addTo(map);
 }
 
-function startTracking() {
+// ------------------------------------
+// GPS sofort starten
+// NUR Anzeige
+// KEIN Speichern
+// ------------------------------------
+
+startLocationUpdates(false);
+
+// ------------------------------------
+// GPS Funktion
+// ------------------------------------
+
+function startLocationUpdates(saveRoute = false) {
 
   if (!navigator.geolocation) {
 
@@ -149,45 +178,69 @@ function startTracking() {
     async (position) => {
 
       const lat = position.coords.latitude;
+
       const lng = position.coords.longitude;
+
       const accuracy = position.coords.accuracy;
 
-      // Punkt speichern
-      routeCoordinates.push([lat, lng]);
-
-      // Route dauerhaft speichern
-      localStorage.setItem(
-        "savedRoute",
-        JSON.stringify(routeCoordinates)
-      );
-
+      // ------------------------------------
       // Marker aktualisieren
+      // ------------------------------------
+
       marker.setLatLng([lat, lng]);
 
+      // ------------------------------------
       // Kreis aktualisieren
+      // ------------------------------------
+
       circle.setLatLng([lat, lng]);
 
       circle.setRadius(accuracy);
 
-      // Alte Linie entfernen
-      if (routeLine) {
-
-        map.removeLayer(routeLine);
-      }
-
-      // Neue Route zeichnen
-      routeLine = L.polyline(routeCoordinates).addTo(map);
-
+      // ------------------------------------
       // Karte zentrieren
+      // ------------------------------------
+
       map.setView([lat, lng], 17);
 
+      // ------------------------------------
       // Popup
+      // ------------------------------------
+
       marker.bindPopup(`
         <b>Du bist hier</b><br>
         Genauigkeit: ${Math.round(accuracy)} m
       `).openPopup();
 
+      // ------------------------------------
+      // Route speichern NUR wenn aktiv
+      // ------------------------------------
+
+      if (saveRoute && trackingActive) {
+
+        // Punkt speichern
+        routeCoordinates.push([lat, lng]);
+
+        // localStorage speichern
+        localStorage.setItem(
+          "savedRoute",
+          JSON.stringify(routeCoordinates)
+        );
+
+        // Alte Route entfernen
+        if (routeLine) {
+
+          map.removeLayer(routeLine);
+        }
+
+        // Neue Route zeichnen
+        routeLine = L.polyline(routeCoordinates).addTo(map);
+      }
+
+      // ------------------------------------
       // Adresse holen
+      // ------------------------------------
+
       let address = "Adresse unbekannt";
 
       try {
@@ -208,7 +261,10 @@ function startTracking() {
         console.error(err);
       }
 
+      // ------------------------------------
       // Status anzeigen
+      // ------------------------------------
+
       document.getElementById("status").innerHTML = `
 
         <b>Breitengrad:</b><br>
@@ -223,12 +279,12 @@ function startTracking() {
         <b>Aktuelle Adresse:</b><br>
         ${address}<br><br>
 
+        <b>Tracking aktiv:</b><br>
+        ${trackingActive ? "JA" : "NEIN"}<br><br>
+
         <b>Gespeicherte Punkte:</b><br>
         ${routeCoordinates.length}
-
       `;
-
-      console.log(position);
     },
 
     (error) => {
@@ -269,16 +325,49 @@ function startTracking() {
   );
 }
 
-function stopTracking() {
+// ------------------------------------
+// Tracking STARTEN
+// ------------------------------------
 
+function enableRouteTracking() {
+
+  trackingActive = true;
+
+  // Alte GPS Überwachung stoppen
   if (watchId) {
 
     navigator.geolocation.clearWatch(watchId);
-
-    document.getElementById("status").innerHTML =
-      "Tracking gestoppt";
   }
+
+  // GPS neu starten + speichern aktivieren
+  startLocationUpdates(true);
+
+  alert("Routenaufzeichnung gestartet");
 }
+
+// ------------------------------------
+// Tracking STOPPEN
+// ------------------------------------
+
+function stopRouteTracking() {
+
+  trackingActive = false;
+
+  // GPS stoppen
+  if (watchId) {
+
+    navigator.geolocation.clearWatch(watchId);
+  }
+
+  // GPS neu starten OHNE speichern
+  startLocationUpdates(false);
+
+  alert("Routenaufzeichnung gestoppt");
+}
+
+// ------------------------------------
+// Route löschen
+// ------------------------------------
 
 function clearRoute() {
 
@@ -293,9 +382,6 @@ function clearRoute() {
 
   alert("Route gelöscht");
 }
-
-// Automatisch starten
-startTracking();
 
 </script>
 
