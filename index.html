@@ -141,7 +141,7 @@
       cursor: pointer;
     }
 
-    h3 {
+    h3, h4 {
       margin-top: 0;
     }
 
@@ -164,23 +164,52 @@
 
   <!-- Neue Route -->
 
-  <button onclick="createNewRoute()">
+  <button
+    id="newRouteBtn"
+    onclick="createNewRoute()"
+  >
     Neue Route
   </button>
 
-  <!-- Tracking -->
+  <!-- Tracking starten -->
 
-  <button onclick="enableRouteTracking()">
+  <button
+    id="startTrackingBtn"
+    onclick="enableRouteTracking()"
+    style="display:none;"
+  >
     Tracking starten
   </button>
 
-  <button onclick="stopRouteTracking()">
+  <!-- Tracking stoppen -->
+
+  <button
+    id="stopTrackingBtn"
+    onclick="stopRouteTracking()"
+    style="display:none;"
+  >
     Tracking stoppen
   </button>
 
-  <button onclick="clearRoute()">
+  <!-- Route löschen -->
+
+  <button
+    id="clearRouteBtn"
+    onclick="clearRoute()"
+    style="display:none;"
+  >
     Route löschen
   </button>
+
+  <hr>
+
+  <!-- Gespeicherte Routen -->
+
+  <h4>Gespeicherte Routen</h4>
+
+  <div id="savedRoutesList">
+    Keine gespeicherten Routen
+  </div>
 
 </div>
 
@@ -253,6 +282,12 @@ let currentLng = null;
 let routeName = "";
 let routeDate = "";
 
+// Gespeicherte Routen
+let savedRoutes =
+  JSON.parse(
+    localStorage.getItem("savedRoutes")
+  ) || [];
+
 // ------------------------------------
 // Karte initialisieren
 // ------------------------------------
@@ -285,24 +320,17 @@ circle = L.circle([51.505, -0.09], {
 }).addTo(map);
 
 // ------------------------------------
-// Gespeicherte Route laden
-// ------------------------------------
-
-const savedRoute = localStorage.getItem("savedRoute");
-
-if (savedRoute) {
-
-  routeCoordinates = JSON.parse(savedRoute);
-
-  routeLine = L.polyline(routeCoordinates).addTo(map);
-}
-
-// ------------------------------------
 // GPS sofort starten
 // Nur Anzeige
 // ------------------------------------
 
 startLocationUpdates(false);
+
+// ------------------------------------
+// Gespeicherte Routen anzeigen
+// ------------------------------------
+
+updateSavedRoutesList();
 
 // ------------------------------------
 // GPS Funktion
@@ -345,22 +373,30 @@ function startLocationUpdates(saveRoute = false) {
         Genauigkeit: ${Math.round(accuracy)} m
       `).openPopup();
 
+      // Karte nur beim ersten GPS Fix zentrieren
+      if (!window.initialCentered) {
+
+        map.setView([lat, lng], 17);
+
+        window.initialCentered = true;
+      }
+
       // Route speichern
       if (saveRoute && trackingActive) {
 
         routeCoordinates.push([lat, lng]);
-
-        localStorage.setItem(
-          "savedRoute",
-          JSON.stringify(routeCoordinates)
-        );
 
         if (routeLine) {
 
           map.removeLayer(routeLine);
         }
 
-        routeLine = L.polyline(routeCoordinates).addTo(map);
+        routeLine = L.polyline(
+          routeCoordinates,
+          {
+            color: 'blue'
+          }
+        ).addTo(map);
       }
 
       // Adresse holen
@@ -410,7 +446,6 @@ function startLocationUpdates(saveRoute = false) {
 
         <b>Gespeicherte Punkte:</b><br>
         ${routeCoordinates.length}
-
       `;
     },
 
@@ -423,19 +458,16 @@ function startLocationUpdates(saveRoute = false) {
         case error.PERMISSION_DENIED:
 
           alert("Standortzugriff verweigert");
-
           break;
 
         case error.POSITION_UNAVAILABLE:
 
           alert("Position nicht verfügbar");
-
           break;
 
         case error.TIMEOUT:
 
           alert("Zeitüberschreitung");
-
           break;
 
         default:
@@ -450,6 +482,50 @@ function startLocationUpdates(saveRoute = false) {
       maximumAge: 0
     }
   );
+}
+
+// ------------------------------------
+// Gespeicherte Routen anzeigen
+// ------------------------------------
+
+function updateSavedRoutesList() {
+
+  const list =
+    document.getElementById(
+      "savedRoutesList"
+    );
+
+  if (savedRoutes.length === 0) {
+
+    list.innerHTML =
+      "Keine gespeicherten Routen";
+
+    return;
+  }
+
+  list.innerHTML = "";
+
+  savedRoutes.forEach((route, index) => {
+
+    list.innerHTML += `
+
+      <div style="
+        padding:10px;
+        margin-top:8px;
+        border:1px solid #ccc;
+        border-radius:10px;
+      ">
+
+        <b>${route.name}</b><br>
+
+        ${route.date}<br>
+
+        Punkte:
+        ${route.points.length}
+
+      </div>
+    `;
+  });
 }
 
 // ------------------------------------
@@ -489,12 +565,24 @@ function createNewRoute() {
   // Alte Route löschen
   routeCoordinates = [];
 
-  localStorage.removeItem("savedRoute");
-
   if (routeLine) {
 
     map.removeLayer(routeLine);
   }
+
+  // Buttons umschalten
+
+  document.getElementById(
+    "startTrackingBtn"
+  ).style.display = "block";
+
+  document.getElementById(
+    "clearRouteBtn"
+  ).style.display = "block";
+
+  document.getElementById(
+    "stopTrackingBtn"
+  ).style.display = "none";
 
   // Status aktualisieren
   document.getElementById("status").innerHTML = `
@@ -523,17 +611,13 @@ function enableRouteTracking() {
 
   trackingActive = true;
 
-  // Nur mit Route
-  if (!routeName) {
+  document.getElementById(
+    "startTrackingBtn"
+  ).style.display = "none";
 
-    alert(
-      "Bitte zuerst 'Neue Route' erstellen"
-    );
-
-    trackingActive = false;
-
-    return;
-  }
+  document.getElementById(
+    "stopTrackingBtn"
+  ).style.display = "block";
 
   if (watchId) {
 
@@ -552,6 +636,31 @@ function enableRouteTracking() {
 function stopRouteTracking() {
 
   trackingActive = false;
+
+  // Route speichern
+  savedRoutes.push({
+
+    name: routeName,
+
+    date: routeDate,
+
+    points: routeCoordinates
+  });
+
+  localStorage.setItem(
+    "savedRoutes",
+    JSON.stringify(savedRoutes)
+  );
+
+  updateSavedRoutesList();
+
+  document.getElementById(
+    "startTrackingBtn"
+  ).style.display = "none";
+
+  document.getElementById(
+    "stopTrackingBtn"
+  ).style.display = "none";
 
   if (watchId) {
 
@@ -575,12 +684,22 @@ function clearRoute() {
 
   routeDate = "";
 
-  localStorage.removeItem("savedRoute");
-
   if (routeLine) {
 
     map.removeLayer(routeLine);
   }
+
+  document.getElementById(
+    "startTrackingBtn"
+  ).style.display = "none";
+
+  document.getElementById(
+    "stopTrackingBtn"
+  ).style.display = "none";
+
+  document.getElementById(
+    "clearRouteBtn"
+  ).style.display = "none";
 
   alert("Route gelöscht");
 }
