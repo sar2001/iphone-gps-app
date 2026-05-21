@@ -162,6 +162,14 @@
     Warte auf Standort...
   </div>
 
+  <!-- Neue Route -->
+
+  <button onclick="createNewRoute()">
+    Neue Route
+  </button>
+
+  <!-- Tracking -->
+
   <button onclick="enableRouteTracking()">
     Tracking starten
   </button>
@@ -240,6 +248,10 @@ let routeLine;
 // Aktuelle Position
 let currentLat = null;
 let currentLng = null;
+
+// Routeninformationen
+let routeName = "";
+let routeDate = "";
 
 // ------------------------------------
 // Karte initialisieren
@@ -375,6 +387,12 @@ function startLocationUpdates(saveRoute = false) {
       // Status anzeigen
       document.getElementById("status").innerHTML = `
 
+        <b>Route:</b><br>
+        ${routeName || "Keine"}<br><br>
+
+        <b>Datum:</b><br>
+        ${routeDate || "-"}<br><br>
+
         <b>Breitengrad:</b><br>
         ${lat.toFixed(6)}<br><br>
 
@@ -435,12 +453,87 @@ function startLocationUpdates(saveRoute = false) {
 }
 
 // ------------------------------------
+// Neue Route erstellen
+// ------------------------------------
+
+function createNewRoute() {
+
+  // Name eingeben
+  routeName = prompt(
+    "Name der Route eingeben:"
+  );
+
+  if (!routeName) {
+
+    alert("Kein Name eingegeben");
+
+    return;
+  }
+
+  // Heutiges Datum vorbelegen
+  const today =
+    new Date().toLocaleDateString();
+
+  // Datum eingeben
+  routeDate = prompt(
+    "Datum der Route:",
+    today
+  );
+
+  // Falls abgebrochen
+  if (!routeDate) {
+
+    routeDate = today;
+  }
+
+  // Alte Route löschen
+  routeCoordinates = [];
+
+  localStorage.removeItem("savedRoute");
+
+  if (routeLine) {
+
+    map.removeLayer(routeLine);
+  }
+
+  // Status aktualisieren
+  document.getElementById("status").innerHTML = `
+
+    <b>Route:</b><br>
+    ${routeName}<br><br>
+
+    <b>Datum:</b><br>
+    ${routeDate}<br><br>
+
+    Neue Route erstellt.<br><br>
+
+    Jetzt auf
+    <b>Tracking starten</b>
+    tippen.
+  `;
+
+  alert("Neue Route erstellt");
+}
+
+// ------------------------------------
 // Tracking STARTEN
 // ------------------------------------
 
 function enableRouteTracking() {
 
   trackingActive = true;
+
+  // Nur mit Route
+  if (!routeName) {
+
+    alert(
+      "Bitte zuerst 'Neue Route' erstellen"
+    );
+
+    trackingActive = false;
+
+    return;
+  }
 
   if (watchId) {
 
@@ -477,6 +570,10 @@ function stopRouteTracking() {
 function clearRoute() {
 
   routeCoordinates = [];
+
+  routeName = "";
+
+  routeDate = "";
 
   localStorage.removeItem("savedRoute");
 
