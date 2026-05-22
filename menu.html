@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+
+<meta charset="UTF-8" />
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+/>
+
+<title>Menü</title>
+
+<style>
+
+body {
+
+  font-family: Arial;
+
+  margin: 0;
+
+  padding: 20px;
+
+  background: #f2f2f2;
+}
+
+button {
+
+  width: 100%;
+
+  padding: 14px;
+
+  margin-top: 10px;
+
+  font-size: 18px;
+
+  border: none;
+
+  border-radius: 10px;
+}
+
+.route {
+
+  background: white;
+
+  padding: 14px;
+
+  border-radius: 10px;
+
+  margin-top: 12px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h2>GPS Menü</h2>
+
+<button onclick="backToMap()">
+Zurück zur Karte
+</button>
+
+<hr>
+
+<h3>Aktuelle Route</h3>
+
+<div id="currentRouteInfo"></div>
+
+<script>
+
+// ------------------------------------
+// Route laden
+// ------------------------------------
+
+const route =
+  JSON.parse(
+    localStorage.getItem(
+      "currentRoute"
+    ) || "[]"
+  );
+
+// ------------------------------------
+// Anzeige
+// ------------------------------------
+
+document.getElementById(
+  "currentRouteInfo"
+).innerHTML = `
+
+  Punkte:
+  ${route.length}
+`;
+
+function backToMap() {
+
+  window.location =
+    "map.html";
+}
+
+</script>
+
+</body>
+</html>
