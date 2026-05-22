@@ -111,6 +111,30 @@ html, body {
   box-shadow: 0 0 10px rgba(0,0,0,0.3);
 }
 
+/* Status */
+
+#stats {
+
+  position: fixed;
+
+  right: 10px;
+  top: 10px;
+
+  z-index: 9999;
+
+  background: white;
+
+  padding: 12px;
+
+  border-radius: 12px;
+
+  width: 170px;
+
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+
+  font-size: 14px;
+}
+
 </style>
 
 </head>
@@ -137,6 +161,19 @@ html, body {
 >
 Tracking starten
 </button>
+
+<div id="stats">
+
+  Geschwindigkeit:
+  0 km/h<br><br>
+
+  Strecke:
+  0 km<br><br>
+
+  Fahrzeit:
+  00:00:00
+
+</div>
 
 <div id="map"></div>
 
@@ -193,6 +230,62 @@ let tracking = false;
 
 let routePoints = [];
 
+let totalDistance = 0;
+
+let startTime = null;
+
+let lastLat = null;
+
+let lastLng = null;
+
+// ------------------------------------
+// Distanz
+// ------------------------------------
+
+function distanceMeters(
+  lat1,
+  lon1,
+  lat2,
+  lon2
+) {
+
+  const R = 6371000;
+
+  const dLat =
+    (lat2-lat1)
+    * Math.PI / 180;
+
+  const dLon =
+    (lon2-lon1)
+    * Math.PI / 180;
+
+  const a =
+
+    Math.sin(dLat/2)
+    * Math.sin(dLat/2)
+
+    +
+
+    Math.cos(lat1*Math.PI/180)
+    *
+    Math.cos(lat2*Math.PI/180)
+
+    *
+
+    Math.sin(dLon/2)
+    *
+    Math.sin(dLon/2);
+
+  const c =
+
+    2 * Math.atan2(
+      Math.sqrt(a),
+      Math.sqrt(1-a)
+    );
+
+  return R * c;
+}
+
 // ------------------------------------
 // GPS
 // ------------------------------------
@@ -213,12 +306,22 @@ navigator.geolocation.watchPosition(
 
     marker.setLatLng([lat, lng]);
 
+    // Erstes Zentrieren
+
     if (!window.firstCenter) {
 
       map.setView([lat, lng], 17);
 
       window.firstCenter = true;
     }
+
+    // Geschwindigkeit
+
+    const speed =
+      position.coords.speed || 0;
+
+    const kmh =
+      speed * 3.6;
 
     // Tracking
 
@@ -231,7 +334,76 @@ navigator.geolocation.watchPosition(
       routeLine.setLatLngs(
         routePoints
       );
+
+      // Strecke
+
+      if (
+        lastLat !== null
+      ) {
+
+        totalDistance +=
+          distanceMeters(
+            lastLat,
+            lastLng,
+            lat,
+            lng
+          );
+      }
+
+      lastLat = lat;
+      lastLng = lng;
     }
+
+    // Fahrzeit
+
+    let duration =
+      "00:00:00";
+
+    if (startTime) {
+
+      const sec =
+        Math.floor(
+          (Date.now() - startTime)
+          / 1000
+        );
+
+      const h =
+        String(
+          Math.floor(sec / 3600)
+        ).padStart(2, '0');
+
+      const m =
+        String(
+          Math.floor(
+            (sec % 3600) / 60
+          )
+        ).padStart(2, '0');
+
+      const s =
+        String(
+          sec % 60
+        ).padStart(2, '0');
+
+      duration =
+        `${h}:${m}:${s}`;
+    }
+
+    // Anzeige
+
+    document.getElementById(
+      "stats"
+    ).innerHTML = `
+
+      Geschwindigkeit:
+      ${kmh.toFixed(1)} km/h<br><br>
+
+      Strecke:
+      ${(totalDistance/1000).toFixed(2)} km<br><br>
+
+      Fahrzeit:
+      ${duration}
+
+    `;
   },
 
   (err) => {
@@ -245,14 +417,21 @@ navigator.geolocation.watchPosition(
 );
 
 // ------------------------------------
-// Menü öffnen
+// Menü
 // ------------------------------------
 
 function openMenu() {
 
   localStorage.setItem(
-    "currentRoute",
+    "routePoints",
     JSON.stringify(routePoints)
+  );
+
+  localStorage.setItem(
+    "distanceKm",
+    (
+      totalDistance / 1000
+    ).toFixed(2)
   );
 
   window.location =
@@ -291,6 +470,12 @@ function toggleTracking() {
     );
 
   if (tracking) {
+
+    routePoints = [];
+
+    totalDistance = 0;
+
+    startTime = Date.now();
 
     btn.innerText =
       "Tracking stoppen";
