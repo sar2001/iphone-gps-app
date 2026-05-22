@@ -8,9 +8,9 @@
     content="width=device-width, initial-scale=1.0"
   />
 
-  <title>iPhone GPS Tracker</title>
+  <title>GPS Tracker Cloud</title>
 
-  <!-- Leaflet CSS -->
+  <!-- Leaflet -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet/dist/leaflet.css"
@@ -35,7 +35,7 @@
     }
 
     /* ------------------------------------ */
-    /* Side Panel */
+    /* SIDE PANEL */
     /* ------------------------------------ */
 
     .side-panel {
@@ -67,7 +67,7 @@
     }
 
     /* ------------------------------------ */
-    /* Menü Button */
+    /* MENU BUTTON */
     /* ------------------------------------ */
 
     #menuButton {
@@ -96,7 +96,7 @@
     }
 
     /* ------------------------------------ */
-    /* Zentrierungs Button */
+    /* CENTER BUTTON */
     /* ------------------------------------ */
 
     #centerButton {
@@ -125,7 +125,7 @@
     }
 
     /* ------------------------------------ */
-    /* Buttons */
+    /* BUTTONS */
     /* ------------------------------------ */
 
     button {
@@ -142,7 +142,23 @@
     }
 
     h3, h4 {
+
       margin-top: 0;
+    }
+
+    /* ------------------------------------ */
+    /* ROUTE ITEMS */
+    /* ------------------------------------ */
+
+    .routeItem {
+
+      border: 1px solid #ccc;
+
+      border-radius: 10px;
+
+      padding: 10px;
+
+      margin-top: 10px;
     }
 
   </style>
@@ -151,7 +167,7 @@
 <body>
 
 <!-- ------------------------------------ -->
-<!-- Side Panel -->
+<!-- SIDE PANEL -->
 <!-- ------------------------------------ -->
 
 <div id="sidePanel" class="side-panel">
@@ -203,58 +219,119 @@
 
   <hr>
 
-  <!-- Gespeicherte Routen -->
+  <!-- Cloud Routen -->
 
-  <h4>Gespeicherte Routen</h4>
+  <h4>Cloud Routen</h4>
 
   <div id="savedRoutesList">
-    Keine gespeicherten Routen
+    Lade Routen...
   </div>
 
 </div>
 
 <!-- ------------------------------------ -->
-<!-- Menü Button -->
+<!-- MENU -->
 <!-- ------------------------------------ -->
 
-<button id="menuButton" onclick="togglePanel()">
+<button
+  id="menuButton"
+  onclick="togglePanel()"
+>
 ☰
 </button>
 
 <!-- ------------------------------------ -->
-<!-- Zentrierungs Button -->
+<!-- CENTER -->
 <!-- ------------------------------------ -->
 
-<button id="centerButton" onclick="centerMap()">
+<button
+  id="centerButton"
+  onclick="centerMap()"
+>
 ◎
 </button>
 
 <!-- ------------------------------------ -->
-<!-- Karte -->
+<!-- MAP -->
 <!-- ------------------------------------ -->
 
 <div id="map"></div>
 
 <!-- Leaflet -->
+
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<script>
+<!-- Firebase -->
+
+<script type="module">
 
 // ------------------------------------
-// AUTOMATISCHE VERSION
+// Firebase Imports
 // ------------------------------------
 
-const APP_VERSION = document.lastModified;
+import {
+
+  initializeApp
+
+} from
+"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+import {
+
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs
+
+} from
+"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ------------------------------------
-// Titel setzen
+// FIREBASE CONFIG
 // ------------------------------------
 
-document.addEventListener("DOMContentLoaded", () => {
+const firebaseConfig = {
 
-  document.getElementById("appTitle").innerText =
-    `GPS Tracking ${APP_VERSION}`;
-});
+  apiKey:
+    "AIzaSyBG-_8LeU72a-mj-zNyezr4zlXtJoHxi9c",
+
+  authDomain:
+    "ras-gps-route.firebaseapp.com",
+
+  projectId:
+    "ras-gps-route",
+
+  storageBucket:
+    "ras-gps-route.firebasestorage.app",
+
+  messagingSenderId:
+    "200005558812",
+
+  appId:
+    "1:200005558812:web:a6a89a131a35aad57ab5d9"
+};
+
+// ------------------------------------
+// Firebase starten
+// ------------------------------------
+
+const app =
+  initializeApp(firebaseConfig);
+
+const db =
+  getFirestore(app);
+
+// ------------------------------------
+// VERSION
+// ------------------------------------
+
+const APP_VERSION =
+  document.lastModified;
+
+document.getElementById(
+  "appTitle"
+).innerText =
+  `GPS Tracking Cloud ${APP_VERSION}`;
 
 // ------------------------------------
 // Variablen
@@ -274,34 +351,30 @@ let routeCoordinates = [];
 
 let routeLine;
 
-// Aktuelle Position
 let currentLat = null;
+
 let currentLng = null;
 
-// Routeninformationen
 let routeName = "";
+
 let routeDate = "";
 
-// Gespeicherte Routen
-let savedRoutes =
-  JSON.parse(
-    localStorage.getItem("savedRoutes")
-  ) || [];
-
 // ------------------------------------
-// Karte initialisieren
+// Karte
 // ------------------------------------
 
-map = L.map('map').setView([51.505, -0.09], 13);
+map = L.map('map')
+.setView([51.505, -0.09], 13);
 
 // ------------------------------------
-// OpenStreetMap Layer
+// OpenStreetMap
 // ------------------------------------
 
 L.tileLayer(
   'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
   {
-    attribution: '&copy; OpenStreetMap contributors'
+    attribution:
+      '&copy; OpenStreetMap contributors'
   }
 ).addTo(map);
 
@@ -309,268 +382,230 @@ L.tileLayer(
 // Marker
 // ------------------------------------
 
-marker = L.marker([51.505, -0.09]).addTo(map);
+marker =
+  L.marker([51.505, -0.09])
+  .addTo(map);
 
 // ------------------------------------
 // Genauigkeitskreis
 // ------------------------------------
 
-circle = L.circle([51.505, -0.09], {
-  radius: 50
-}).addTo(map);
+circle =
+  L.circle([51.505, -0.09], {
+    radius: 50
+  }).addTo(map);
 
 // ------------------------------------
 // GPS sofort starten
-// Nur Anzeige
 // ------------------------------------
 
 startLocationUpdates(false);
 
 // ------------------------------------
-// Gespeicherte Routen anzeigen
+// Cloud Routen laden
 // ------------------------------------
 
-updateSavedRoutesList();
+loadRoutes();
 
 // ------------------------------------
 // GPS Funktion
 // ------------------------------------
 
-function startLocationUpdates(saveRoute = false) {
+function startLocationUpdates(
+  saveRoute = false
+) {
 
   if (!navigator.geolocation) {
 
-    alert("Geolocation nicht unterstützt");
-
-    return;
-  }
-
-  watchId = navigator.geolocation.watchPosition(
-
-    async (position) => {
-
-      const lat = position.coords.latitude;
-
-      const lng = position.coords.longitude;
-
-      const accuracy = position.coords.accuracy;
-
-      // Aktuelle Position speichern
-      currentLat = lat;
-      currentLng = lng;
-
-      // Marker aktualisieren
-      marker.setLatLng([lat, lng]);
-
-      // Kreis aktualisieren
-      circle.setLatLng([lat, lng]);
-
-      circle.setRadius(accuracy);
-
-      // Popup
-      marker.bindPopup(`
-        <b>Du bist hier</b><br>
-        Genauigkeit: ${Math.round(accuracy)} m
-      `).openPopup();
-
-      // Karte nur beim ersten GPS Fix zentrieren
-      if (!window.initialCentered) {
-
-        map.setView([lat, lng], 17);
-
-        window.initialCentered = true;
-      }
-
-      // Route speichern
-      if (saveRoute && trackingActive) {
-
-        routeCoordinates.push([lat, lng]);
-
-        if (routeLine) {
-
-          map.removeLayer(routeLine);
-        }
-
-        routeLine = L.polyline(
-          routeCoordinates,
-          {
-            color: 'blue'
-          }
-        ).addTo(map);
-      }
-
-      // Adresse holen
-      let address = "Adresse unbekannt";
-
-      try {
-
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`
-        );
-
-        const data = await response.json();
-
-        if (data.display_name) {
-
-          address = data.display_name;
-        }
-
-      } catch (err) {
-
-        console.error(err);
-      }
-
-      // Status anzeigen
-      document.getElementById("status").innerHTML = `
-
-        <b>Route:</b><br>
-        ${routeName || "Keine"}<br><br>
-
-        <b>Datum:</b><br>
-        ${routeDate || "-"}<br><br>
-
-        <b>Breitengrad:</b><br>
-        ${lat.toFixed(6)}<br><br>
-
-        <b>Längengrad:</b><br>
-        ${lng.toFixed(6)}<br><br>
-
-        <b>Genauigkeit:</b><br>
-        ${Math.round(accuracy)} m<br><br>
-
-        <b>Aktuelle Adresse:</b><br>
-        ${address}<br><br>
-
-        <b>Tracking aktiv:</b><br>
-        ${trackingActive ? "JA" : "NEIN"}<br><br>
-
-        <b>Gespeicherte Punkte:</b><br>
-        ${routeCoordinates.length}
-      `;
-    },
-
-    (error) => {
-
-      console.error(error);
-
-      switch(error.code) {
-
-        case error.PERMISSION_DENIED:
-
-          alert("Standortzugriff verweigert");
-          break;
-
-        case error.POSITION_UNAVAILABLE:
-
-          alert("Position nicht verfügbar");
-          break;
-
-        case error.TIMEOUT:
-
-          alert("Zeitüberschreitung");
-          break;
-
-        default:
-
-          alert("Unbekannter Fehler");
-      }
-    },
-
-    {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0
-    }
-  );
-}
-
-// ------------------------------------
-// Gespeicherte Routen anzeigen
-// ------------------------------------
-
-function updateSavedRoutesList() {
-
-  const list =
-    document.getElementById(
-      "savedRoutesList"
+    alert(
+      "Geolocation nicht unterstützt"
     );
 
-  if (savedRoutes.length === 0) {
-
-    list.innerHTML =
-      "Keine gespeicherten Routen";
-
     return;
   }
 
-  list.innerHTML = "";
+  watchId =
+    navigator.geolocation.watchPosition(
 
-  savedRoutes.forEach((route, index) => {
+      async (position) => {
 
-    list.innerHTML += `
+        const lat =
+          position.coords.latitude;
 
-      <div style="
-        padding:10px;
-        margin-top:8px;
-        border:1px solid #ccc;
-        border-radius:10px;
-      ">
+        const lng =
+          position.coords.longitude;
 
-        <b>${route.name}</b><br>
+        const accuracy =
+          position.coords.accuracy;
 
-        ${route.date}<br>
+        currentLat = lat;
 
-        Punkte:
-        ${route.points.length}
+        currentLng = lng;
 
-      </div>
-    `;
-  });
+        // Marker
+
+        marker.setLatLng([lat, lng]);
+
+        // Kreis
+
+        circle.setLatLng([lat, lng]);
+
+        circle.setRadius(accuracy);
+
+        // Popup
+
+        marker.bindPopup(`
+          <b>Du bist hier</b><br>
+          Genauigkeit:
+          ${Math.round(accuracy)} m
+        `);
+
+        // Erste Zentrierung
+
+        if (!window.initialCentered) {
+
+          map.setView([lat, lng], 17);
+
+          window.initialCentered = true;
+        }
+
+        // Route speichern
+
+        if (
+          saveRoute &&
+          trackingActive
+        ) {
+
+          routeCoordinates.push(
+            [lat, lng]
+          );
+
+          if (routeLine) {
+
+            map.removeLayer(routeLine);
+          }
+
+          routeLine =
+            L.polyline(
+              routeCoordinates,
+              {
+                color: 'blue'
+              }
+            ).addTo(map);
+        }
+
+        // Adresse holen
+
+        let address =
+          "Adresse unbekannt";
+
+        try {
+
+          const response =
+            await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`
+            );
+
+          const data =
+            await response.json();
+
+          if (data.display_name) {
+
+            address =
+              data.display_name;
+          }
+
+        } catch (err) {
+
+          console.error(err);
+        }
+
+        // Status
+
+        document.getElementById(
+          "status"
+        ).innerHTML = `
+
+          <b>Route:</b><br>
+          ${routeName || "Keine"}<br><br>
+
+          <b>Datum:</b><br>
+          ${routeDate || "-"}<br><br>
+
+          <b>Breitengrad:</b><br>
+          ${lat.toFixed(6)}<br><br>
+
+          <b>Längengrad:</b><br>
+          ${lng.toFixed(6)}<br><br>
+
+          <b>Genauigkeit:</b><br>
+          ${Math.round(accuracy)} m<br><br>
+
+          <b>Adresse:</b><br>
+          ${address}<br><br>
+
+          <b>Tracking aktiv:</b><br>
+          ${trackingActive ? "JA" : "NEIN"}<br><br>
+
+          <b>Punkte:</b><br>
+          ${routeCoordinates.length}
+
+        `;
+      },
+
+      (error) => {
+
+        console.error(error);
+
+        alert("GPS Fehler");
+      },
+
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
 }
 
 // ------------------------------------
-// Neue Route erstellen
+// Neue Route
 // ------------------------------------
 
-function createNewRoute() {
+window.createNewRoute =
+function () {
 
-  // Name eingeben
-  routeName = prompt(
-    "Name der Route eingeben:"
-  );
+  routeName =
+    prompt(
+      "Name der Route:"
+    );
 
   if (!routeName) {
 
-    alert("Kein Name eingegeben");
-
     return;
   }
 
-  // Heutiges Datum vorbelegen
   const today =
-    new Date().toLocaleDateString();
+    new Date()
+    .toLocaleDateString();
 
-  // Datum eingeben
-  routeDate = prompt(
-    "Datum der Route:",
-    today
-  );
+  routeDate =
+    prompt(
+      "Datum:",
+      today
+    );
 
-  // Falls abgebrochen
   if (!routeDate) {
 
     routeDate = today;
   }
 
-  // Alte Route löschen
   routeCoordinates = [];
 
   if (routeLine) {
 
     map.removeLayer(routeLine);
   }
-
-  // Buttons umschalten
 
   document.getElementById(
     "startTrackingBtn"
@@ -584,30 +619,17 @@ function createNewRoute() {
     "stopTrackingBtn"
   ).style.display = "none";
 
-  // Status aktualisieren
-  document.getElementById("status").innerHTML = `
-
-    <b>Route:</b><br>
-    ${routeName}<br><br>
-
-    <b>Datum:</b><br>
-    ${routeDate}<br><br>
-
-    Neue Route erstellt.<br><br>
-
-    Jetzt auf
-    <b>Tracking starten</b>
-    tippen.
-  `;
-
-  alert("Neue Route erstellt");
-}
+  alert(
+    "Neue Route erstellt"
+  );
+};
 
 // ------------------------------------
-// Tracking STARTEN
+// Tracking starten
 // ------------------------------------
 
-function enableRouteTracking() {
+window.enableRouteTracking =
+function () {
 
   trackingActive = true;
 
@@ -621,38 +643,58 @@ function enableRouteTracking() {
 
   if (watchId) {
 
-    navigator.geolocation.clearWatch(watchId);
+    navigator.geolocation
+    .clearWatch(watchId);
   }
 
   startLocationUpdates(true);
 
-  alert("Routenaufzeichnung gestartet");
-}
+  alert(
+    "Tracking gestartet"
+  );
+};
 
 // ------------------------------------
-// Tracking STOPPEN
+// Tracking stoppen
 // ------------------------------------
 
-function stopRouteTracking() {
+window.stopRouteTracking =
+async function () {
 
   trackingActive = false;
 
-  // Route speichern
-  savedRoutes.push({
+  // In Firebase speichern
 
-    name: routeName,
+  try {
 
-    date: routeDate,
+    await addDoc(
 
-    points: routeCoordinates
-  });
+      collection(db, "routes"),
 
-  localStorage.setItem(
-    "savedRoutes",
-    JSON.stringify(savedRoutes)
-  );
+      {
+        name: routeName,
 
-  updateSavedRoutesList();
+        date: routeDate,
+
+        points: routeCoordinates,
+
+        created:
+          new Date()
+      }
+    );
+
+  } catch (err) {
+
+    console.error(err);
+
+    alert(
+      "Fehler beim Speichern"
+    );
+  }
+
+  // Routen neu laden
+
+  loadRoutes();
 
   document.getElementById(
     "startTrackingBtn"
@@ -662,21 +704,61 @@ function stopRouteTracking() {
     "stopTrackingBtn"
   ).style.display = "none";
 
-  if (watchId) {
+  alert(
+    "Route gespeichert"
+  );
+};
 
-    navigator.geolocation.clearWatch(watchId);
+// ------------------------------------
+// Cloud Routen laden
+// ------------------------------------
+
+async function loadRoutes() {
+
+  const list =
+    document.getElementById(
+      "savedRoutesList"
+    );
+
+  list.innerHTML = "";
+
+  const querySnapshot =
+    await getDocs(
+      collection(db, "routes")
+    );
+
+  querySnapshot.forEach((doc) => {
+
+    const route = doc.data();
+
+    list.innerHTML += `
+
+      <div class="routeItem">
+
+        <b>${route.name}</b><br>
+
+        ${route.date}<br>
+
+        Punkte:
+        ${route.points.length}
+
+      </div>
+    `;
+  });
+
+  if (list.innerHTML === "") {
+
+    list.innerHTML =
+      "Keine Routen";
   }
-
-  startLocationUpdates(false);
-
-  alert("Routenaufzeichnung gestoppt");
 }
 
 // ------------------------------------
 // Route löschen
 // ------------------------------------
 
-function clearRoute() {
+window.clearRoute =
+function () {
 
   routeCoordinates = [];
 
@@ -701,67 +783,91 @@ function clearRoute() {
     "clearRouteBtn"
   ).style.display = "none";
 
-  alert("Route gelöscht");
-}
+  alert(
+    "Route gelöscht"
+  );
+};
 
 // ------------------------------------
-// Side Panel öffnen/schließen
+// Menü öffnen/schließen
 // ------------------------------------
 
-function togglePanel() {
+window.togglePanel =
+function () {
 
-  const panel =
-    document.getElementById("sidePanel");
-
-  panel.classList.toggle("open");
-}
+  document
+    .getElementById("sidePanel")
+    .classList.toggle("open");
+};
 
 // ------------------------------------
 // Karte zentrieren
 // ------------------------------------
 
-function centerMap() {
+window.centerMap =
+function () {
 
-  if (currentLat && currentLng) {
+  if (
+    currentLat &&
+    currentLng
+  ) {
 
     map.setView(
       [currentLat, currentLng],
       17
     );
   }
-}
+};
 
 // ------------------------------------
-// Swipe erkennen
+// Swipe
 // ------------------------------------
 
 let touchStartX = 0;
 
-document.addEventListener("touchstart", (e) => {
+document.addEventListener(
+  "touchstart",
+  (e) => {
 
-  touchStartX = e.changedTouches[0].screenX;
-});
-
-document.addEventListener("touchend", (e) => {
-
-  const touchEndX = e.changedTouches[0].screenX;
-
-  // Nach rechts wischen = öffnen
-  if (touchEndX - touchStartX > 80) {
-
-    document
-      .getElementById("sidePanel")
-      .classList.add("open");
+    touchStartX =
+      e.changedTouches[0].screenX;
   }
+);
 
-  // Nach links wischen = schließen
-  if (touchStartX - touchEndX > 80) {
+document.addEventListener(
+  "touchend",
+  (e) => {
 
-    document
-      .getElementById("sidePanel")
-      .classList.remove("open");
+    const touchEndX =
+      e.changedTouches[0].screenX;
+
+    // Öffnen
+
+    if (
+      touchEndX - touchStartX > 80
+    ) {
+
+      document
+        .getElementById(
+          "sidePanel"
+        )
+        .classList.add("open");
+    }
+
+    // Schließen
+
+    if (
+      touchStartX - touchEndX > 80
+    ) {
+
+      document
+        .getElementById(
+          "sidePanel"
+        )
+        .classList.remove("open");
+    }
   }
-});
+);
 
 </script>
 
