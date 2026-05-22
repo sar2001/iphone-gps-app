@@ -8,9 +8,10 @@
     content="width=device-width, initial-scale=1.0"
   />
 
-  <title>GPS Tracker Cloud</title>
+  <title>GPS Motorrad Tracker Cloud</title>
 
   <!-- Leaflet -->
+
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet/dist/leaflet.css"
@@ -34,9 +35,9 @@
       height: 100vh;
     }
 
-    /* ------------------------------------ */
+    /* -------------------------------- */
     /* SIDE PANEL */
-    /* ------------------------------------ */
+    /* -------------------------------- */
 
     .side-panel {
 
@@ -66,9 +67,9 @@
       left: 0;
     }
 
-    /* ------------------------------------ */
+    /* -------------------------------- */
     /* MENU BUTTON */
-    /* ------------------------------------ */
+    /* -------------------------------- */
 
     #menuButton {
 
@@ -95,9 +96,9 @@
       cursor: pointer;
     }
 
-    /* ------------------------------------ */
+    /* -------------------------------- */
     /* CENTER BUTTON */
-    /* ------------------------------------ */
+    /* -------------------------------- */
 
     #centerButton {
 
@@ -124,9 +125,9 @@
       cursor: pointer;
     }
 
-    /* ------------------------------------ */
+    /* -------------------------------- */
     /* BUTTONS */
-    /* ------------------------------------ */
+    /* -------------------------------- */
 
     button {
 
@@ -146,9 +147,9 @@
       margin-top: 0;
     }
 
-    /* ------------------------------------ */
+    /* -------------------------------- */
     /* ROUTE ITEMS */
-    /* ------------------------------------ */
+    /* -------------------------------- */
 
     .routeItem {
 
@@ -166,9 +167,9 @@
 
 <body>
 
-<!-- ------------------------------------ -->
+<!-- -------------------------------- -->
 <!-- SIDE PANEL -->
-<!-- ------------------------------------ -->
+<!-- -------------------------------- -->
 
 <div id="sidePanel" class="side-panel">
 
@@ -229,9 +230,9 @@
 
 </div>
 
-<!-- ------------------------------------ -->
+<!-- -------------------------------- -->
 <!-- MENU -->
-<!-- ------------------------------------ -->
+<!-- -------------------------------- -->
 
 <button
   id="menuButton"
@@ -240,9 +241,9 @@
 ☰
 </button>
 
-<!-- ------------------------------------ -->
+<!-- -------------------------------- -->
 <!-- CENTER -->
-<!-- ------------------------------------ -->
+<!-- -------------------------------- -->
 
 <button
   id="centerButton"
@@ -251,17 +252,21 @@
 ◎
 </button>
 
-<!-- ------------------------------------ -->
+<!-- -------------------------------- -->
 <!-- MAP -->
-<!-- ------------------------------------ -->
+<!-- -------------------------------- -->
 
 <div id="map"></div>
 
+<!-- -------------------------------- -->
 <!-- Leaflet -->
+<!-- -------------------------------- -->
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
+<!-- -------------------------------- -->
 <!-- Firebase -->
+<!-- -------------------------------- -->
 
 <script type="module">
 
@@ -331,7 +336,7 @@ const APP_VERSION =
 document.getElementById(
   "appTitle"
 ).innerText =
-  `GPS Tracking Cloud ${APP_VERSION}`;
+  `Motorrad GPS Tracker ${APP_VERSION}`;
 
 // ------------------------------------
 // Variablen
@@ -358,6 +363,16 @@ let currentLng = null;
 let routeName = "";
 
 let routeDate = "";
+
+// Motorrad Einstellungen
+
+const minDistance = 15;
+const maxSeconds = 5;
+
+let lastSavedLat = null;
+let lastSavedLng = null;
+
+let lastSaveTime = 0;
 
 // ------------------------------------
 // Karte
@@ -408,6 +423,54 @@ startLocationUpdates(false);
 loadRoutes();
 
 // ------------------------------------
+// Entfernung berechnen
+// ------------------------------------
+
+function distanceMeters(
+  lat1,
+  lon1,
+  lat2,
+  lon2
+) {
+
+  const R = 6371000;
+
+  const dLat =
+    (lat2 - lat1)
+    * Math.PI / 180;
+
+  const dLon =
+    (lon2 - lon1)
+    * Math.PI / 180;
+
+  const a =
+
+    Math.sin(dLat/2)
+    * Math.sin(dLat/2)
+
+    +
+
+    Math.cos(lat1*Math.PI/180)
+    *
+    Math.cos(lat2*Math.PI/180)
+
+    *
+
+    Math.sin(dLon/2)
+    *
+    Math.sin(dLon/2);
+
+  const c =
+
+    2 * Math.atan2(
+      Math.sqrt(a),
+      Math.sqrt(1-a)
+    );
+
+  return R * c;
+}
+
+// ------------------------------------
 // GPS Funktion
 // ------------------------------------
 
@@ -439,7 +502,6 @@ function startLocationUpdates(
           position.coords.accuracy;
 
         currentLat = lat;
-
         currentLng = lng;
 
         // Marker
@@ -469,32 +531,93 @@ function startLocationUpdates(
           window.initialCentered = true;
         }
 
-        // Route speichern
+        // --------------------------------
+        // Motorrad Tracking
+        // --------------------------------
 
         if (
           saveRoute &&
           trackingActive
         ) {
 
-          routeCoordinates.push(
-            [lat, lng]
-          );
+          const now =
+            Date.now();
 
-          if (routeLine) {
+          let shouldSave =
+            false;
 
-            map.removeLayer(routeLine);
+          // Erster Punkt
+
+          if (
+            lastSavedLat === null
+          ) {
+
+            shouldSave = true;
           }
 
-          routeLine =
-            L.polyline(
-              routeCoordinates,
-              {
-                color: 'blue'
-              }
-            ).addTo(map);
+          else {
+
+            const dist =
+              distanceMeters(
+                lastSavedLat,
+                lastSavedLng,
+                lat,
+                lng
+              );
+
+            const seconds =
+              (
+                now -
+                lastSaveTime
+              ) / 1000;
+
+            // Motorrad Regeln
+
+            if (
+              dist >= minDistance
+              ||
+              seconds >= maxSeconds
+            ) {
+
+              shouldSave = true;
+            }
+          }
+
+          // Speichern
+
+          if (shouldSave) {
+
+            routeCoordinates.push(
+              [lat, lng]
+            );
+
+            lastSavedLat = lat;
+            lastSavedLng = lng;
+
+            lastSaveTime = now;
+
+            // Linie aktualisieren
+
+            if (routeLine) {
+
+              map.removeLayer(
+                routeLine
+              );
+            }
+
+            routeLine =
+              L.polyline(
+                routeCoordinates,
+                {
+                  color: 'blue'
+                }
+              ).addTo(map);
+          }
         }
 
+        // --------------------------------
         // Adresse holen
+        // --------------------------------
 
         let address =
           "Adresse unbekannt";
@@ -520,7 +643,9 @@ function startLocationUpdates(
           console.error(err);
         }
 
+        // --------------------------------
         // Status
+        // --------------------------------
 
         document.getElementById(
           "status"
@@ -562,8 +687,10 @@ function startLocationUpdates(
 
       {
         enableHighAccuracy: true,
+
         timeout: 10000,
-        maximumAge: 0
+
+        maximumAge: 1000
       }
     );
 }
@@ -601,6 +728,10 @@ function () {
   }
 
   routeCoordinates = [];
+
+  lastSavedLat = null;
+  lastSavedLng = null;
+  lastSaveTime = 0;
 
   if (routeLine) {
 
@@ -663,8 +794,6 @@ async function () {
 
   trackingActive = false;
 
-  // In Firebase speichern
-
   try {
 
     await addDoc(
@@ -691,8 +820,6 @@ async function () {
       "Fehler beim Speichern"
     );
   }
-
-  // Routen neu laden
 
   loadRoutes();
 
@@ -729,7 +856,8 @@ async function loadRoutes() {
 
   querySnapshot.forEach((doc) => {
 
-    const route = doc.data();
+    const route =
+      doc.data();
 
     list.innerHTML += `
 
@@ -789,7 +917,7 @@ function () {
 };
 
 // ------------------------------------
-// Menü öffnen/schließen
+// Menü
 // ------------------------------------
 
 window.togglePanel =
