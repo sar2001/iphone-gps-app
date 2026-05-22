@@ -8,7 +8,7 @@
     content="width=device-width, initial-scale=1.0"
   />
 
-  <title>GPS Motorrad Tracker Cloud</title>
+  <title>Motorrad GPS Tracker</title>
 
   <!-- Leaflet -->
 
@@ -286,7 +286,11 @@ import {
   getFirestore,
   collection,
   addDoc,
-  getDocs
+  getDocs,
+
+  doc,
+  getDoc,
+  deleteDoc
 
 } from
 "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -373,6 +377,14 @@ let lastSavedLat = null;
 let lastSavedLng = null;
 
 let lastSaveTime = 0;
+
+// Statistik
+
+let totalDistance = 0;
+
+let startTime = null;
+
+let currentSpeed = 0;
 
 // ------------------------------------
 // Karte
@@ -504,6 +516,14 @@ function startLocationUpdates(
         currentLat = lat;
         currentLng = lng;
 
+        // Geschwindigkeit
+
+        currentSpeed =
+          position.coords.speed || 0;
+
+        const kmh =
+          currentSpeed * 3.6;
+
         // Marker
 
         marker.setLatLng([lat, lng]);
@@ -571,8 +591,6 @@ function startLocationUpdates(
                 lastSaveTime
               ) / 1000;
 
-            // Motorrad Regeln
-
             if (
               dist >= minDistance
               ||
@@ -586,6 +604,23 @@ function startLocationUpdates(
           // Speichern
 
           if (shouldSave) {
+
+            // Distanz
+
+            if (
+              lastSavedLat !== null
+            ) {
+
+              const dist =
+                distanceMeters(
+                  lastSavedLat,
+                  lastSavedLng,
+                  lat,
+                  lng
+                );
+
+              totalDistance += dist;
+            }
 
             routeCoordinates.push(
               [lat, lng]
@@ -613,6 +648,56 @@ function startLocationUpdates(
                 }
               ).addTo(map);
           }
+        }
+
+        // --------------------------------
+        // Fahrzeit
+        // --------------------------------
+
+        let durationText = "-";
+
+        if (startTime) {
+
+          const durationMs =
+            Date.now() - startTime;
+
+          const totalSeconds =
+            Math.floor(
+              durationMs / 1000
+            );
+
+          const hours =
+            Math.floor(
+              totalSeconds / 3600
+            );
+
+          const minutes =
+            Math.floor(
+              (totalSeconds % 3600)
+              / 60
+            );
+
+          const seconds =
+            totalSeconds % 60;
+
+          durationText =
+
+            String(hours)
+            .padStart(2, '0')
+
+            + ":"
+
+            +
+
+            String(minutes)
+            .padStart(2, '0')
+
+            + ":"
+
+            +
+
+            String(seconds)
+            .padStart(2, '0');
         }
 
         // --------------------------------
@@ -668,6 +753,15 @@ function startLocationUpdates(
 
           <b>Adresse:</b><br>
           ${address}<br><br>
+
+          <b>Geschwindigkeit:</b><br>
+          ${kmh.toFixed(1)} km/h<br><br>
+
+          <b>Strecke:</b><br>
+          ${(totalDistance / 1000).toFixed(2)} km<br><br>
+
+          <b>Fahrzeit:</b><br>
+          ${durationText}<br><br>
 
           <b>Tracking aktiv:</b><br>
           ${trackingActive ? "JA" : "NEIN"}<br><br>
@@ -729,6 +823,10 @@ function () {
 
   routeCoordinates = [];
 
+  totalDistance = 0;
+
+  startTime = null;
+
   lastSavedLat = null;
   lastSavedLng = null;
   lastSaveTime = 0;
@@ -764,6 +862,8 @@ function () {
 
   trackingActive = true;
 
+  startTime = Date.now();
+
   document.getElementById(
     "startTrackingBtn"
   ).style.display = "none";
@@ -794,6 +894,52 @@ async function () {
 
   trackingActive = false;
 
+  let durationText = "-";
+
+  if (startTime) {
+
+    const durationMs =
+      Date.now() - startTime;
+
+    const totalSeconds =
+      Math.floor(
+        durationMs / 1000
+      );
+
+    const hours =
+      Math.floor(
+        totalSeconds / 3600
+      );
+
+    const minutes =
+      Math.floor(
+        (totalSeconds % 3600)
+        / 60
+      );
+
+    const seconds =
+      totalSeconds % 60;
+
+    durationText =
+
+      String(hours)
+      .padStart(2, '0')
+
+      + ":"
+
+      +
+
+      String(minutes)
+      .padStart(2, '0')
+
+      + ":"
+
+      +
+
+      String(seconds)
+      .padStart(2, '0');
+  }
+
   try {
 
     await addDoc(
@@ -807,6 +953,14 @@ async function () {
 
         points: routeCoordinates,
 
+        distanceKm:
+          (
+            totalDistance / 1000
+          ).toFixed(2),
+
+        duration:
+          durationText,
+
         created:
           new Date()
       }
@@ -816,9 +970,7 @@ async function () {
 
     console.error(err);
 
-    alert(
-      "Fehler beim Speichern"
-    );
+    alert(err);
   }
 
   loadRoutes();
@@ -854,10 +1006,13 @@ async function loadRoutes() {
       collection(db, "routes")
     );
 
-  querySnapshot.forEach((doc) => {
+  querySnapshot.forEach((docSnap) => {
 
     const route =
-      doc.data();
+      docSnap.data();
+
+    const docId =
+      docSnap.id;
 
     list.innerHTML += `
 
@@ -867,8 +1022,26 @@ async function loadRoutes() {
 
         ${route.date}<br>
 
+        Strecke:
+        ${route.distanceKm || 0} km<br>
+
+        Fahrzeit:
+        ${route.duration || "-"}<br>
+
         Punkte:
-        ${route.points.length}
+        ${route.points.length}<br><br>
+
+        <button
+          onclick="showRoute('${docId}')"
+        >
+          Route anzeigen
+        </button>
+
+        <button
+          onclick="deleteRoute('${docId}')"
+        >
+          Route löschen
+        </button>
 
       </div>
     `;
@@ -882,7 +1055,80 @@ async function loadRoutes() {
 }
 
 // ------------------------------------
+// Route anzeigen
+// ------------------------------------
+
+window.showRoute =
+async function (docId) {
+
+  const routeDoc =
+    await getDoc(
+      doc(db, "routes", docId)
+    );
+
+  if (!routeDoc.exists()) {
+
+    alert("Route nicht gefunden");
+
+    return;
+  }
+
+  const route =
+    routeDoc.data();
+
+  if (routeLine) {
+
+    map.removeLayer(routeLine);
+  }
+
+  routeLine =
+    L.polyline(
+      route.points,
+      {
+        color: 'red',
+        weight: 5
+      }
+    ).addTo(map);
+
+  map.fitBounds(
+    routeLine.getBounds()
+  );
+
+  document
+    .getElementById("sidePanel")
+    .classList.remove("open");
+};
+
+// ------------------------------------
 // Route löschen
+// ------------------------------------
+
+window.deleteRoute =
+async function (docId) {
+
+  const ok =
+    confirm(
+      "Route wirklich löschen?"
+    );
+
+  if (!ok) {
+
+    return;
+  }
+
+  await deleteDoc(
+    doc(db, "routes", docId)
+  );
+
+  loadRoutes();
+
+  alert(
+    "Route gelöscht"
+  );
+};
+
+// ------------------------------------
+// Route löschen lokal
 // ------------------------------------
 
 window.clearRoute =
@@ -893,6 +1139,10 @@ function () {
   routeName = "";
 
   routeDate = "";
+
+  totalDistance = 0;
+
+  startTime = null;
 
   if (routeLine) {
 
