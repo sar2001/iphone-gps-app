@@ -1,3 +1,7 @@
+<!-- ======================================== -->
+<!-- map.html -->
+<!-- ======================================== -->
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -111,7 +115,7 @@ html, body {
   box-shadow: 0 0 10px rgba(0,0,0,0.3);
 }
 
-/* Status */
+/* Statistik */
 
 #stats {
 
@@ -128,11 +132,11 @@ html, body {
 
   border-radius: 12px;
 
-  width: 170px;
-
-  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+  width: 180px;
 
   font-size: 14px;
+
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
 }
 
 </style>
@@ -179,19 +183,75 @@ Tracking starten
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<script>
+<script type="module">
 
-// ------------------------------------
+// ========================================
+// Firebase Imports
+// ========================================
+
+import {
+
+  initializeApp
+
+} from
+"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+import {
+
+  getFirestore,
+
+  collection,
+  addDoc
+
+} from
+"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ========================================
+// Firebase Config
+// ========================================
+
+const firebaseConfig = {
+
+  apiKey:
+    "DEINE_API_KEY",
+
+  authDomain:
+    "DEIN_PROJECT.firebaseapp.com",
+
+  projectId:
+    "DEIN_PROJECT",
+
+  storageBucket:
+    "DEIN_PROJECT.appspot.com",
+
+  messagingSenderId:
+    "123456789",
+
+  appId:
+    "DEINE_APP_ID"
+};
+
+// ========================================
+// Firebase starten
+// ========================================
+
+const app =
+  initializeApp(firebaseConfig);
+
+const db =
+  getFirestore(app);
+
+// ========================================
 // Karte
-// ------------------------------------
+// ========================================
 
 const map =
   L.map('map')
   .setView([51.505, -0.09], 13);
 
-// ------------------------------------
+// ========================================
 // OSM
-// ------------------------------------
+// ========================================
 
 L.tileLayer(
   'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -201,26 +261,26 @@ L.tileLayer(
   }
 ).addTo(map);
 
-// ------------------------------------
+// ========================================
 // Marker
-// ------------------------------------
+// ========================================
 
 const marker =
   L.marker([51.505, -0.09])
   .addTo(map);
 
-// ------------------------------------
-// Linie
-// ------------------------------------
+// ========================================
+// Route Linie
+// ========================================
 
 let routeLine =
   L.polyline([], {
     color: 'blue'
   }).addTo(map);
 
-// ------------------------------------
+// ========================================
 // Variablen
-// ------------------------------------
+// ========================================
 
 let currentLat = null;
 
@@ -238,9 +298,9 @@ let lastLat = null;
 
 let lastLng = null;
 
-// ------------------------------------
-// Distanz
-// ------------------------------------
+// ========================================
+// Distanz berechnen
+// ========================================
 
 function distanceMeters(
   lat1,
@@ -286,9 +346,9 @@ function distanceMeters(
   return R * c;
 }
 
-// ------------------------------------
+// ========================================
 // GPS
-// ------------------------------------
+// ========================================
 
 navigator.geolocation.watchPosition(
 
@@ -416,33 +476,137 @@ navigator.geolocation.watchPosition(
   }
 );
 
-// ------------------------------------
+// ========================================
+// Tracking
+// ========================================
+
+window.toggleTracking =
+async function () {
+
+  tracking = !tracking;
+
+  const btn =
+    document.getElementById(
+      "trackingButton"
+    );
+
+  // START
+
+  if (tracking) {
+
+    routePoints = [];
+
+    totalDistance = 0;
+
+    startTime = Date.now();
+
+    lastLat = null;
+    lastLng = null;
+
+    btn.innerText =
+      "Tracking stoppen";
+  }
+
+  // STOP
+
+  else {
+
+    btn.innerText =
+      "Tracking starten";
+
+    // Name
+
+    const routeName =
+      prompt(
+        "Name der Route:"
+      );
+
+    // Datum
+
+    const date =
+      new Date()
+      .toLocaleDateString();
+
+    // Fahrzeit
+
+    const sec =
+      Math.floor(
+        (Date.now() - startTime)
+        / 1000
+      );
+
+    const h =
+      String(
+        Math.floor(sec / 3600)
+      ).padStart(2, '0');
+
+    const m =
+      String(
+        Math.floor(
+          (sec % 3600) / 60
+        )
+      ).padStart(2, '0');
+
+    const s =
+      String(
+        sec % 60
+      ).padStart(2, '0');
+
+    const duration =
+      `${h}:${m}:${s}`;
+
+    // Firebase speichern
+
+    await addDoc(
+
+      collection(db, "routes"),
+
+      {
+
+        name:
+          routeName || "Route",
+
+        date: date,
+
+        distance:
+          (
+            totalDistance / 1000
+          ).toFixed(2),
+
+        duration:
+          duration,
+
+        points:
+          routePoints,
+
+        created:
+          new Date()
+      }
+    );
+
+    alert(
+      "Route gespeichert"
+    );
+  }
+};
+
+// ========================================
 // Menü
-// ------------------------------------
+// ========================================
 
-function openMenu() {
-
-  localStorage.setItem(
-    "routePoints",
-    JSON.stringify(routePoints)
-  );
-
-  localStorage.setItem(
-    "distanceKm",
-    (
-      totalDistance / 1000
-    ).toFixed(2)
-  );
+window.openMenu =
+function () {
 
   window.location =
     "menu.html";
-}
+};
 
-// ------------------------------------
+// ========================================
 // Zentrieren
-// ------------------------------------
+// ========================================
 
-function centerMap() {
+window.centerMap =
+function () {
 
   if (
     currentLat &&
@@ -454,38 +618,7 @@ function centerMap() {
       17
     );
   }
-}
-
-// ------------------------------------
-// Tracking
-// ------------------------------------
-
-function toggleTracking() {
-
-  tracking = !tracking;
-
-  const btn =
-    document.getElementById(
-      "trackingButton"
-    );
-
-  if (tracking) {
-
-    routePoints = [];
-
-    totalDistance = 0;
-
-    startTime = Date.now();
-
-    btn.innerText =
-      "Tracking stoppen";
-
-  } else {
-
-    btn.innerText =
-      "Tracking starten";
-  }
-}
+};
 
 </script>
 

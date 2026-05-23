@@ -1,3 +1,7 @@
+<!-- ======================================== -->
+<!-- menu.html -->
+<!-- ======================================== -->
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -9,7 +13,7 @@
   content="width=device-width, initial-scale=1.0"
 />
 
-<title>GPS Menü</title>
+<title>Routen</title>
 
 <style>
 
@@ -36,10 +40,10 @@ button {
 
   border-radius: 10px;
 
-  font-size: 18px;
+  font-size: 16px;
 }
 
-.card {
+.route {
 
   background: white;
 
@@ -56,93 +60,164 @@ button {
 
 <body>
 
-<h2>GPS Menü</h2>
+<h2>Gespeicherte Routen</h2>
 
 <button onclick="backToMap()">
 Zurück zur Karte
 </button>
 
-<div class="card">
-
-  <h3>Aktuelle Route</h3>
-
-  <div id="routeInfo"></div>
-
+<div id="routes">
+Lade Routen...
 </div>
 
-<div class="card">
+<script type="module">
 
-  <h3>Aktionen</h3>
+// ========================================
+// Firebase Imports
+// ========================================
 
-  <button onclick="showRoute()">
-    Route anzeigen
-  </button>
+import {
 
-  <button onclick="deleteRoute()">
-    Route löschen
-  </button>
+  initializeApp
 
-</div>
+} from
+"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
-<script>
+import {
 
-// ------------------------------------
-// Daten laden
-// ------------------------------------
+  getFirestore,
 
-const route =
-  JSON.parse(
-    localStorage.getItem(
-      "routePoints"
-    ) || "[]"
+  collection,
+  getDocs,
+
+  deleteDoc,
+  doc
+
+} from
+"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ========================================
+// Firebase Config
+// ========================================
+
+const firebaseConfig = {
+
+  apiKey:
+    "DEINE_API_KEY",
+
+  authDomain:
+    "DEIN_PROJECT.firebaseapp.com",
+
+  projectId:
+    "DEIN_PROJECT",
+
+  storageBucket:
+    "DEIN_PROJECT.appspot.com",
+
+  messagingSenderId:
+    "123456789",
+
+  appId:
+    "DEINE_APP_ID"
+};
+
+// ========================================
+// Firebase starten
+// ========================================
+
+const app =
+  initializeApp(firebaseConfig);
+
+const db =
+  getFirestore(app);
+
+// ========================================
+// Routen laden
+// ========================================
+
+const container =
+  document.getElementById(
+    "routes"
   );
 
-const distance =
-  localStorage.getItem(
-    "distanceKm"
-  ) || 0;
+container.innerHTML = "";
 
-// ------------------------------------
+const querySnapshot =
+
+  await getDocs(
+    collection(db, "routes")
+  );
+
+// ========================================
 // Anzeige
-// ------------------------------------
+// ========================================
 
-document.getElementById(
-  "routeInfo"
-).innerHTML = `
+querySnapshot.forEach(
+  (docSnap) => {
 
-  Punkte:
-  ${route.length}<br><br>
+    const route =
+      docSnap.data();
 
-  Strecke:
-  ${distance} km
-`;
+    const routeId =
+      docSnap.id;
 
-// ------------------------------------
-// Karte
-// ------------------------------------
+    container.innerHTML += `
 
-function backToMap() {
+      <div class="route">
+
+        <b>${route.name}</b><br><br>
+
+        Datum:
+        ${route.date}<br><br>
+
+        Strecke:
+        ${route.distance} km<br><br>
+
+        Fahrzeit:
+        ${route.duration}<br><br>
+
+        Punkte:
+        ${route.points.length}<br><br>
+
+        <button
+          onclick="showRoute('${routeId}')"
+        >
+          Route anzeigen
+        </button>
+
+        <button
+          onclick="deleteRoute('${routeId}')"
+        >
+          Route löschen
+        </button>
+
+      </div>
+    `;
+  }
+);
+
+// ========================================
+// Route anzeigen
+// ========================================
+
+window.showRoute =
+function (routeId) {
+
+  localStorage.setItem(
+    "selectedRouteId",
+    routeId
+  );
 
   window.location =
     "map.html";
-}
+};
 
-// ------------------------------------
-// Route anzeigen
-// ------------------------------------
+// ========================================
+// Route löschen
+// ========================================
 
-function showRoute() {
-
-  alert(
-    `Route enthält ${route.length} Punkte`
-  );
-}
-
-// ------------------------------------
-// Löschen
-// ------------------------------------
-
-function deleteRoute() {
+window.deleteRoute =
+async function (routeId) {
 
   const ok =
     confirm(
@@ -154,20 +229,28 @@ function deleteRoute() {
     return;
   }
 
-  localStorage.removeItem(
-    "routePoints"
-  );
+  await deleteDoc(
 
-  localStorage.removeItem(
-    "distanceKm"
-  );
-
-  alert(
-    "Route gelöscht"
+    doc(
+      db,
+      "routes",
+      routeId
+    )
   );
 
   location.reload();
-}
+};
+
+// ========================================
+// Zurück
+// ========================================
+
+window.backToMap =
+function () {
+
+  window.location =
+    "map.html";
+};
 
 </script>
 
