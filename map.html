@@ -201,7 +201,10 @@ import {
   getFirestore,
 
   collection,
-  addDoc
+  addDoc,
+
+  getDoc,
+  doc
 
 } from
 "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -352,7 +355,7 @@ function distanceMeters(
 
 navigator.geolocation.watchPosition(
 
-  (position) => {
+  async (position) => {
 
     const lat =
       position.coords.latitude;
@@ -597,8 +600,8 @@ async function () {
 window.openMenu =
 function () {
 
-  window.location =
-    "menu.html";
+  window.location.href =
+    "./menu.html";
 };
 
 // ========================================
@@ -619,6 +622,46 @@ function () {
     );
   }
 };
+
+// ========================================
+// Route anzeigen
+// ========================================
+
+const selectedRouteId =
+  localStorage.getItem(
+    "selectedRouteId"
+  );
+
+if (selectedRouteId) {
+
+  const routeDoc =
+    await getDoc(
+
+      doc(
+        db,
+        "routes",
+        selectedRouteId
+      )
+    );
+
+  if (routeDoc.exists()) {
+
+    const route =
+      routeDoc.data();
+
+    routeLine.setLatLngs(
+      route.points
+    );
+
+    map.fitBounds(
+      routeLine.getBounds()
+    );
+  }
+
+  localStorage.removeItem(
+    "selectedRouteId"
+  );
+}
 
 </script>
 
