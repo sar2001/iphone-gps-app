@@ -13,6 +13,11 @@
   content="width=device-width, initial-scale=1.0"
 />
 
+<meta
+  http-equiv="Cache-Control"
+  content="no-cache, no-store, must-revalidate"
+/>
+
 <title>Routen</title>
 
 <style>
@@ -62,7 +67,7 @@ button {
 
 <h2>Gespeicherte Routen</h2>
 
-<button onclick="backToMap()">
+<button id="backButton">
 Zurück zur Karte
 </button>
 
@@ -130,6 +135,22 @@ const app =
 
 const db =
   getFirestore(app);
+
+// ========================================
+// Zurück Button
+// ========================================
+
+document
+  .getElementById("backButton")
+  .addEventListener(
+    "click",
+    () => {
+
+      window.location.replace(
+        "map.html"
+      );
+    }
+  );
 
 // ========================================
 // Routen laden
@@ -208,8 +229,9 @@ function (routeId) {
     routeId
   );
 
-  window.location.href =
-    "./map.html";
+  window.location.replace(
+    "map.html"
+  );
 };
 
 // ========================================
@@ -239,17 +261,6 @@ async function (routeId) {
   );
 
   location.reload();
-};
-
-// ========================================
-// Zurück
-// ========================================
-
-window.backToMap =
-function () {
-
-  window.location.href =
-    "./map.html";
 };
 
 </script>

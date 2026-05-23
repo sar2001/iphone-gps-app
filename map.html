@@ -13,6 +13,11 @@
   content="width=device-width, initial-scale=1.0"
 />
 
+<meta
+  http-equiv="Cache-Control"
+  content="no-cache, no-store, must-revalidate"
+/>
+
 <title>GPS Map</title>
 
 <link
@@ -594,14 +599,15 @@ async function () {
 };
 
 // ========================================
-// Menü
+// Menü öffnen
 // ========================================
 
 window.openMenu =
 function () {
 
-  window.location.href =
-    "./menu.html";
+  window.location.replace(
+    "menu.html"
+  );
 };
 
 // ========================================
