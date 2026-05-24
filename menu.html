@@ -1,7 +1,3 @@
-<!-- ======================================== -->
-<!-- menu.html -->
-<!-- ======================================== -->
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -23,40 +19,34 @@
 <style>
 
 body {
-
-  font-family: Arial;
-
+  font-family: Arial, sans-serif;
   background: #f2f2f2;
-
   margin: 0;
-
   padding: 20px;
 }
 
 button {
-
   width: 100%;
-
   padding: 14px;
-
   margin-top: 10px;
-
   border: none;
-
   border-radius: 10px;
-
   font-size: 16px;
+  cursor: pointer;
 }
 
 .route {
-
   background: white;
-
   padding: 16px;
-
   border-radius: 12px;
-
   margin-top: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+#backButton {
+  background: #007aff;
+  color: white;
+  font-weight: bold;
 }
 
 </style>
@@ -82,22 +72,16 @@ Lade Routen...
 // ========================================
 
 import {
-
   initializeApp
-
 } from
 "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
 import {
-
   getFirestore,
-
   collection,
   getDocs,
-
   deleteDoc,
   doc
-
 } from
 "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -106,33 +90,20 @@ import {
 // ========================================
 
 const firebaseConfig = {
-
   apiKey: "AIzaSyBg_-8LeU72a-mj_zNyezr4zlXtJoHxi9c",
-
   authDomain: "ras-gps-route.firebaseapp.com",
-
   projectId: "ras-gps-route",
-
   storageBucket: "ras-gps-route.firebasestorage.app",
-
   messagingSenderId: "200005558812",
-
-  appId: "1:200005558812:web:a6a89a131a35aad57ab5d9",
-
-  measurementId: "G-XSDK7SVJ0L"
-
+  appId: "1:200005558812:web:a6a89a131a35aad57ab5d9"
 };
-
 
 // ========================================
 // Firebase starten
 // ========================================
 
-const app =
-  initializeApp(firebaseConfig);
-
-const db =
-  getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 // ========================================
 // Zurück Button
@@ -140,125 +111,79 @@ const db =
 
 document
   .getElementById("backButton")
-  .addEventListener(
-    "click",
-    () => {
-
-      window.location.replace(
-        "map.html"
-      );
-    }
-  );
+  .addEventListener("click", () => {
+    window.location.replace("map.html");
+  });
 
 // ========================================
 // Routen laden
 // ========================================
 
-const container =
-  document.getElementById(
-    "routes"
-  );
+const container = document.getElementById("routes");
+container.innerHTML = "<p>Lade Routen...</p>";
 
-container.innerHTML = "";
+try {
+  const querySnapshot = await getDocs(collection(db, "routes"));
 
-const querySnapshot =
+  if (querySnapshot.empty) {
+    container.innerHTML = "<p>Noch keine Routen gespeichert.</p>";
+  } else {
+    container.innerHTML = "";
 
-  await getDocs(
-    collection(db, "routes")
-  );
+    querySnapshot.forEach((docSnap) => {
+      const route = docSnap.data();
+      const routeId = docSnap.id;
 
-// ========================================
-// Anzeige
-// ========================================
+      container.innerHTML += `
+        <div class="route">
+          <b>${route.name || "Unbenannte Route"}</b><br><br>
+          
+          Datum: ${route.date}<br><br>
+          Strecke: ${route.distance} km<br><br>
+          Fahrzeit: ${route.duration}<br><br>
+          Punkte: ${route.points ? route.points.length : 0}<br><br>
 
-querySnapshot.forEach(
-  (docSnap) => {
+          <button onclick="showRoute('${routeId}')">
+            Route anzeigen
+          </button>
 
-    const route =
-      docSnap.data();
-
-    const routeId =
-      docSnap.id;
-
-    container.innerHTML += `
-
-      <div class="route">
-
-        <b>${route.name}</b><br><br>
-
-        Datum:
-        ${route.date}<br><br>
-
-        Strecke:
-        ${route.distance} km<br><br>
-
-        Fahrzeit:
-        ${route.duration}<br><br>
-
-        Punkte:
-        ${route.points.length}<br><br>
-
-        <button
-          onclick="showRoute('${routeId}')"
-        >
-          Route anzeigen
-        </button>
-
-        <button
-          onclick="deleteRoute('${routeId}')"
-        >
-          Route löschen
-        </button>
-
-      </div>
-    `;
+          <button onclick="deleteRoute('${routeId}')" style="background:#ff3b30; color:white;">
+            Route löschen
+          </button>
+        </div>
+      `;
+    });
   }
-);
+} catch (e) {
+  console.error(e);
+  container.innerHTML = `<p style="color:red;">Fehler beim Laden der Routen.<br><small>${e.message}</small></p>`;
+}
 
 // ========================================
 // Route anzeigen
 // ========================================
 
-window.showRoute =
-function (routeId) {
-
-  localStorage.setItem(
-    "selectedRouteId",
-    routeId
-  );
-
-  window.location.replace(
-    "map.html"
-  );
+window.showRoute = function (routeId) {
+  localStorage.setItem("selectedRouteId", routeId);
+  window.location.replace("map.html");
 };
 
 // ========================================
 // Route löschen
 // ========================================
 
-window.deleteRoute =
-async function (routeId) {
+window.deleteRoute = async function (routeId) {
+  const ok = confirm("Route wirklich löschen?");
+  if (!ok) return;
 
-  const ok =
-    confirm(
-      "Route löschen?"
-    );
-
-  if (!ok) {
-
-    return;
+  try {
+    await deleteDoc(doc(db, "routes", routeId));
+    alert("Route gelöscht");
+    location.reload();
+  } catch (e) {
+    console.error(e);
+    alert("Fehler beim Löschen: " + e.message);
   }
-
-  await deleteDoc(
-
-    doc(
-      db,
-      "routes",
-      routeId
-    )
-  );
-
-  location.reload();
 };
 
 </script>

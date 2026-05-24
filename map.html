@@ -390,19 +390,13 @@ navigator.geolocation.watchPosition(
       [lat, lng]
     );
 
-    // Erstes Zentrieren
-
     if (!window.firstCenter) {
-
       map.setView(
         [lat, lng],
         17
       );
-
       window.firstCenter = true;
     }
-
-    // Geschwindigkeit
 
     const speed =
       position.coords.speed || 0;
@@ -410,54 +404,20 @@ navigator.geolocation.watchPosition(
     const kmh =
       speed * 3.6;
 
-    // ====================================
-    // TRACKING
-    // ====================================
-
     if (tracking) {
 
-      // erster Punkt
-
-      if (
-        routePoints.length === 0
-      ) {
-
-        routePoints.push(
-          [lat, lng]
-        );
-
-        routeLine.setLatLngs(
-          routePoints
-        );
+      if (routePoints.length === 0) {
+        routePoints.push([lat, lng]);
+        routeLine.setLatLngs(routePoints);
       }
 
-      // weitere Punkte
-
-      if (
-        lastLat !== null
-      ) {
-
-        const dist =
-          distanceMeters(
-            lastLat,
-            lastLng,
-            lat,
-            lng
-          );
-
-        // nur speichern > 5m
+      if (lastLat !== null) {
+        const dist = distanceMeters(lastLat, lastLng, lat, lng);
 
         if (dist > 5) {
-
           totalDistance += dist;
-
-          routePoints.push(
-            [lat, lng]
-          );
-
-          routeLine.setLatLngs(
-            routePoints
-          );
+          routePoints.push([lat, lng]);
+          routeLine.setLatLngs(routePoints);
         }
       }
 
@@ -465,82 +425,31 @@ navigator.geolocation.watchPosition(
       lastLng = lng;
     }
 
-    // ====================================
-    // Fahrzeit
-    // ====================================
-
-    let duration =
-      "00:00:00";
+    let duration = "00:00:00";
 
     if (startTime) {
-
-      const sec =
-        Math.floor(
-          (
-            Date.now()
-            - startTime
-          ) / 1000
-        );
-
-      const h =
-        String(
-          Math.floor(sec / 3600)
-        ).padStart(2, "0");
-
-      const m =
-        String(
-          Math.floor(
-            (sec % 3600) / 60
-          )
-        ).padStart(2, "0");
-
-      const s =
-        String(
-          sec % 60
-        ).padStart(2, "0");
-
-      duration =
-        `${h}:${m}:${s}`;
+      const sec = Math.floor((Date.now() - startTime) / 1000);
+      const h = String(Math.floor(sec / 3600)).padStart(2, "0");
+      const m = String(Math.floor((sec % 3600) / 60)).padStart(2, "0");
+      const s = String(sec % 60).padStart(2, "0");
+      duration = `${h}:${m}:${s}`;
     }
 
-    // ====================================
-    // Anzeige
-    // ====================================
-
-    document.getElementById(
-      "stats"
-    ).innerHTML = `
-
-      Geschwindigkeit:
-      ${kmh.toFixed(1)} km/h
-
-      <br><br>
-
-      Strecke:
-      ${(totalDistance / 1000).toFixed(2)} km
-
-      <br><br>
-
-      Fahrzeit:
-      ${duration}
+    document.getElementById("stats").innerHTML = `
+      Geschwindigkeit: ${kmh.toFixed(1)} km/h<br><br>
+      Strecke: ${(totalDistance / 1000).toFixed(2)} km<br><br>
+      Fahrzeit: ${duration}
     `;
   },
 
   (error) => {
-
     console.error(error);
-
-    alert(
-      "GPS Fehler"
-    );
+    alert("GPS Fehler");
   },
 
   {
-
     enableHighAccuracy: true,
-
     maximumAge: 0,
-
     timeout: 10000
   }
 );
@@ -549,181 +458,97 @@ navigator.geolocation.watchPosition(
 // TRACKING BUTTON
 // ========================================
 
-window.toggleTracking =
-async function () {
+window.toggleTracking = async function () {
 
   tracking = !tracking;
 
-  const btn =
-    document.getElementById(
-      "trackingButton"
-    );
-
-  // ====================================
-  // START
-  // ====================================
+  const btn = document.getElementById("trackingButton");
 
   if (tracking) {
-
     routePoints = [];
-
     totalDistance = 0;
-
-    startTime =
-      Date.now();
-
+    startTime = Date.now();
     lastLat = null;
     lastLng = null;
-
     routeLine.setLatLngs([]);
-
-    btn.innerText =
-      "Tracking stoppen";
-
+    btn.innerText = "Tracking stoppen";
     return;
   }
 
-  // ====================================
   // STOP
-  // ====================================
-
   tracking = false;
+  btn.innerText = "Tracking starten";
 
-  btn.innerText =
-    "Tracking starten";
-
-  // keine Punkte
-
-  if (
-    routePoints.length === 0
-  ) {
-
-    alert(
-      "Keine Route vorhanden"
-    );
-
+  if (routePoints.length === 0) {
+    alert("Keine Route vorhanden");
     return;
   }
 
-  // Name
+  const routeName = prompt("Name der Route:");
+  const date = new Date().toLocaleDateString();
 
-  const routeName =
-    prompt(
-      "Name der Route:"
-    );
-
-  // Datum
-
-  const date =
-    new Date()
-    .toLocaleDateString();
-
-  // Fahrzeit
-
-  const sec =
-    Math.floor(
-      (
-        Date.now()
-        - startTime
-      ) / 1000
-    );
-
-  const h =
-    String(
-      Math.floor(sec / 3600)
-    ).padStart(2, "0");
-
-  const m =
-    String(
-      Math.floor(
-        (sec % 3600) / 60
-      )
-    ).padStart(2, "0");
-
-  const s =
-    String(
-      sec % 60
-    ).padStart(2, "0");
-
-  const duration =
-    `${h}:${m}:${s}`;
+  const sec = Math.floor((Date.now() - startTime) / 1000);
+  const h = String(Math.floor(sec / 3600)).padStart(2, "0");
+  const m = String(Math.floor((sec % 3600) / 60)).padStart(2, "0");
+  const s = String(sec % 60).padStart(2, "0");
+  const duration = `${h}:${m}:${s}`;
 
   // ====================================
-  // FIREBASE SPEICHERN
+  // FIREBASE SPEICHERN (verbessert)
   // ====================================
 
   try {
+    console.log("🔄 Speichere Route...", {
+      name: routeName || "Route",
+      points: routePoints.length,
+      distance: (totalDistance / 1000).toFixed(2) + " km"
+    });
 
-    await addDoc(
-
+    const docRef = await addDoc(
       collection(db, "routes"),
-
       {
-
-        name:
-          routeName || "Route",
-
+        name: routeName || "Route",
         date: date,
-
-        distance:
-          (
-            totalDistance / 1000
-          ).toFixed(2),
-
-        duration:
-          duration,
-
-        points:
-          routePoints,
-
-        created:
-          Date.now()
+        distance: (totalDistance / 1000).toFixed(2),
+        duration: duration,
+        points: routePoints,
+        created: Date.now()
       }
     );
 
-    alert(
-      "Route gespeichert"
-    );
-  }
+    console.log("✅ Erfolgreich gespeichert! Dokument-ID:", docRef.id);
+    alert(`Route "${routeName || 'Route'}" erfolgreich gespeichert!`);
 
-  catch (e) {
+  } catch (e) {
+    console.error("❌ Speicherfehler:", e);
+    console.error("Fehler-Code:", e.code);
+    console.error("Fehler-Nachricht:", e.message);
 
-    console.error(e);
+    let msg = "Fehler beim Speichern:\n\n";
 
-    alert(
-      "Fehler beim Speichern"
-    );
+    if (e.code === "permission-denied") {
+      msg += "Zugriffsrechte fehlen.\n→ Security Rules in Firebase anpassen!";
+    } else if (e.code === "invalid-argument") {
+      msg += "Ungültige Daten (z.B. zu große Route)";
+    } else {
+      msg += e.message || "Unbekannter Fehler";
+    }
+
+    alert(msg);
   }
 };
 
 // ========================================
-// MENÜ
+// MENÜ + ZENTRIEREN
 // ========================================
 
-window.openMenu =
-function () {
-
-  window.location.replace(
-    "menu.html"
-  );
+window.openMenu = function () {
+  window.location.replace("menu.html");
 };
 
-// ========================================
-// ZENTRIEREN
-// ========================================
-
-window.centerMap =
-function () {
-
-  if (
-    currentLat &&
-    currentLng
-  ) {
-
-    map.setView(
-      [currentLat, currentLng],
-      17
-    );
+window.centerMap = function () {
+  if (currentLat && currentLng) {
+    map.setView([currentLat, currentLng], 17);
   }
 };
 
@@ -731,97 +556,31 @@ function () {
 // ROUTE LADEN
 // ========================================
 
-const selectedRouteId =
-  localStorage.getItem(
-    "selectedRouteId"
-  );
-
-// Route anzeigen
+const selectedRouteId = localStorage.getItem("selectedRouteId");
 
 if (selectedRouteId) {
-
   try {
-
-    const routeDoc =
-      await getDoc(
-
-        doc(
-          db,
-          "routes",
-          selectedRouteId
-        )
-      );
+    const routeDoc = await getDoc(doc(db, "routes", selectedRouteId));
 
     if (routeDoc.exists()) {
+      const route = routeDoc.data();
+      const latlngs = route.points.map(p => [Number(p[0]), Number(p[1])]);
 
-      const route =
-        routeDoc.data();
+      routeLine.setLatLngs(latlngs);
 
-      // Punkte umwandeln
+      L.marker(latlngs[0]).addTo(map);
+      L.marker(latlngs[latlngs.length - 1]).addTo(map);
 
-      const latlngs =
-
-        route.points.map(
-
-          (p) => [
-
-            Number(p[0]),
-            Number(p[1])
-
-          ]
-        );
-
-      console.log(latlngs);
-
-      // Linie
-
-      routeLine.setLatLngs(
-        latlngs
-      );
-
-      // Start Marker
-
-      L.marker(
-        latlngs[0]
-      ).addTo(map);
-
-      // Ende Marker
-
-      L.marker(
-
-        latlngs[
-          latlngs.length - 1
-        ]
-
-      ).addTo(map);
-
-      // Zoom
-
-      map.fitBounds(
-        routeLine.getBounds()
-      );
+      map.fitBounds(routeLine.getBounds());
+    } else {
+      alert("Route nicht gefunden");
     }
-
-    else {
-
-      alert(
-        "Route nicht gefunden"
-      );
-    }
-  }
-
-  catch (e) {
-
+  } catch (e) {
     console.error(e);
-
-    alert(
-      "Fehler beim Laden"
-    );
+    alert("Fehler beim Laden der Route");
   }
 
-  localStorage.removeItem(
-    "selectedRouteId"
-  );
+  localStorage.removeItem("selectedRouteId");
 }
 
 </script>
