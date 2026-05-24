@@ -38,11 +38,6 @@ html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
   width:220px; background:white; padding:12px; border-radius:12px;
   font-size:14px; box-shadow:0 0 10px rgba(0,0,0,0.3);
   display: none;
-  transition: opacity 0.4s;
-}
-
-#stats.active {
-  display: block;
 }
 </style>
 </head>
@@ -94,7 +89,7 @@ let startTime = null;
 let lastLat = null, lastLng = null;
 let gpsReady = false;
 
-// Distanzberechnung
+// Distanz
 function distanceMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -104,7 +99,7 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// GPS Watch
+// GPS
 navigator.geolocation.watchPosition((position) => {
   const lat = position.coords.latitude;
   const lng = position.coords.longitude;
@@ -125,6 +120,7 @@ navigator.geolocation.watchPosition((position) => {
     const btn = document.getElementById("trackingButton");
     btn.textContent = "Tracking starten";
     btn.classList.add("enabled");
+    console.log("✅ GPS-Signal empfangen – Button aktiviert");
   }
 
   if (tracking) {
@@ -145,22 +141,19 @@ navigator.geolocation.watchPosition((position) => {
     }
   }
 
-  // Stats nur während Tracking aktualisieren
-  if (tracking) {
-    updateStats(speed);
-  }
-}, (error) => console.error(error), { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+  if (tracking) updateStats(speed);
+
+}, (error) => {
+  console.error("GPS Error:", error);
+  alert("GPS-Fehler: " + error.message);
+}, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
 
 function updateStats(speed) {
   let duration = "00:00:00";
   if (startTime) {
     const sec = Math.floor((Date.now() - startTime) / 1000);
-    const h = String(Math.floor(sec / 3600)).padStart(2, "0");
-    const m = String(Math.floor((sec % 3600) / 60)).padStart(2, "0");
-    const s = String(sec % 60).padStart(2, "0");
-    duration = `${h}:${m}:${s}`;
+    duration = `${String(Math.floor(sec/3600)).padStart(2,'0')}:${String(Math.floor((sec%3600)/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;
   }
-
   document.getElementById("stats").innerHTML = `
     Geschwindigkeit: ${speed.toFixed(1)} km/h<br><br>
     Strecke: ${(totalDistance / 1000).toFixed(2)} km<br><br>
@@ -168,12 +161,12 @@ function updateStats(speed) {
   `;
 }
 
-// ========================================
 // TRACKING
-// ========================================
-window.toggleTracking = async function () {
+window.toggleTracking = function () {
+  console.log("toggleTracking aufgerufen – tracking war:", tracking);
+
   if (!gpsReady) {
-    alert("Bitte warte bis ein GPS-Signal empfangen wurde.");
+    alert("GPS-Signal wird noch gesucht...");
     return;
   }
 
@@ -182,6 +175,7 @@ window.toggleTracking = async function () {
 
   if (!tracking) {
     // START
+    console.log("🚀 Tracking START");
     tracking = true;
     routePoints = [];
     totalDistance = 0;
@@ -195,66 +189,59 @@ window.toggleTracking = async function () {
     statsBox.classList.add("active");
   } else {
     // STOP
+    console.log("⛔ Tracking STOP");
     tracking = false;
     btn.textContent = "Tracking starten";
     btn.style.background = "#007aff";
 
     if (routePoints.length < 2) {
       statsBox.classList.remove("active");
-      alert("Keine ausreichende Route aufgezeichnet.");
+      alert("Keine Route aufgezeichnet.");
       return;
     }
 
+    // ... Speichercode bleibt gleich ...
     const routeName = prompt("Name der Route:", "Meine Route") || "Route";
     const date = new Date().toLocaleDateString();
-
     const sec = Math.floor((Date.now() - startTime) / 1000);
-    const h = String(Math.floor(sec / 3600)).padStart(2, "0");
-    const m = String(Math.floor((sec % 3600) / 60)).padStart(2, "0");
-    const s = String(sec % 60).padStart(2, "0");
-    const duration = `${h}:${m}:${s}`;
+    const duration = `${String(Math.floor(sec/3600)).padStart(2,'0')}:${String(Math.floor((sec%3600)/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;
 
     const pointsForFirestore = routePoints.map(p => ({ lat: p[0], lng: p[1] }));
 
-    try {
-      await addDoc(collection(db, "routes"), {
-        name: routeName,
-        date: date,
-        distance: (totalDistance / 1000).toFixed(2),
-        duration: duration,
-        points: pointsForFirestore,
-        created: Date.now()
-      });
-      alert(`✅ Route "${routeName}" gespeichert!\n${routePoints.length} Punkte • ${(totalDistance/1000).toFixed(2)} km`);
-    } catch (e) {
+    addDoc(collection(db, "routes"), {
+      name: routeName,
+      date: date,
+      distance: (totalDistance / 1000).toFixed(2),
+      duration: duration,
+      points: pointsForFirestore,
+      created: Date.now()
+    }).then(() => {
+      alert(`✅ Gespeichert: ${routeName} (${routePoints.length} Punkte)`);
+    }).catch(e => {
       console.error(e);
-      alert("Speicherfehler: " + (e.message || e.code));
-    }
+      alert("Speicherfehler: " + e.message);
+    });
 
-    // Stats 5 Sekunden lang sichtbar lassen
-    setTimeout(() => {
-      statsBox.classList.remove("active");
-    }, 5000);
+    setTimeout(() => statsBox.classList.remove("active"), 5000);
   }
 };
 
 window.openMenu = () => location.replace("menu.html");
 window.centerMap = () => currentLat && currentLng && map.setView([currentLat, currentLng], 17);
 
-// Geladene Route anzeigen
+// Route laden
 const selectedRouteId = localStorage.getItem("selectedRouteId");
 if (selectedRouteId) {
-  try {
-    const routeDoc = await getDoc(doc(db, "routes", selectedRouteId));
-    if (routeDoc.exists()) {
-      const route = routeDoc.data();
-      const points = route.points.map(p => Array.isArray(p) ? [p[0], p[1]] : [p.lat, p.lng]);
+  getDoc(doc(db, "routes", selectedRouteId)).then(docSnap => {
+    if (docSnap.exists()) {
+      const route = docSnap.data();
+      const points = route.points.map(p => [p.lat || p[0], p.lng || p[1]]);
       routeLine.setLatLngs(points);
       L.marker(points[0]).addTo(map);
       L.marker(points[points.length-1]).addTo(map);
       map.fitBounds(routeLine.getBounds());
     }
-  } catch (e) { console.error(e); }
+  });
   localStorage.removeItem("selectedRouteId");
 }
 
