@@ -25,6 +25,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
   background:#007aff; color:white; font-size:18px; box-shadow:0 0 10px rgba(0,0,0,0.3);
   opacity: 0.6;
   pointer-events: none;
+  transition: all 0.3s;
 }
 
 #trackingButton.enabled {
@@ -36,6 +37,12 @@ html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
   position:fixed; top:10px; right:10px; z-index:9999;
   width:220px; background:white; padding:12px; border-radius:12px;
   font-size:14px; box-shadow:0 0 10px rgba(0,0,0,0.3);
+  display: none;
+  transition: opacity 0.4s;
+}
+
+#stats.active {
+  display: block;
 }
 </style>
 </head>
@@ -112,7 +119,7 @@ navigator.geolocation.watchPosition((position) => {
     window.firstCenter = true;
   }
 
-  // === GPS ist bereit ===
+  // GPS bereit
   if (!gpsReady) {
     gpsReady = true;
     const btn = document.getElementById("trackingButton");
@@ -138,6 +145,13 @@ navigator.geolocation.watchPosition((position) => {
     }
   }
 
+  // Stats nur während Tracking aktualisieren
+  if (tracking) {
+    updateStats(speed);
+  }
+}, (error) => console.error(error), { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+
+function updateStats(speed) {
   let duration = "00:00:00";
   if (startTime) {
     const sec = Math.floor((Date.now() - startTime) / 1000);
@@ -152,9 +166,7 @@ navigator.geolocation.watchPosition((position) => {
     Strecke: ${(totalDistance / 1000).toFixed(2)} km<br><br>
     Fahrzeit: ${duration}
   `;
-}, (error) => {
-  console.error(error);
-}, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+}
 
 // ========================================
 // TRACKING
@@ -166,8 +178,10 @@ window.toggleTracking = async function () {
   }
 
   const btn = document.getElementById("trackingButton");
+  const statsBox = document.getElementById("stats");
 
   if (!tracking) {
+    // START
     tracking = true;
     routePoints = [];
     totalDistance = 0;
@@ -175,14 +189,18 @@ window.toggleTracking = async function () {
     lastLat = null;
     lastLng = null;
     routeLine.setLatLngs([]);
+
     btn.textContent = "Tracking stoppen";
     btn.style.background = "#ff3b30";
+    statsBox.classList.add("active");
   } else {
+    // STOP
     tracking = false;
     btn.textContent = "Tracking starten";
     btn.style.background = "#007aff";
 
     if (routePoints.length < 2) {
+      statsBox.classList.remove("active");
       alert("Keine ausreichende Route aufgezeichnet.");
       return;
     }
@@ -199,7 +217,7 @@ window.toggleTracking = async function () {
     const pointsForFirestore = routePoints.map(p => ({ lat: p[0], lng: p[1] }));
 
     try {
-      const docRef = await addDoc(collection(db, "routes"), {
+      await addDoc(collection(db, "routes"), {
         name: routeName,
         date: date,
         distance: (totalDistance / 1000).toFixed(2),
@@ -212,6 +230,11 @@ window.toggleTracking = async function () {
       console.error(e);
       alert("Speicherfehler: " + (e.message || e.code));
     }
+
+    // Stats 5 Sekunden lang sichtbar lassen
+    setTimeout(() => {
+      statsBox.classList.remove("active");
+    }, 5000);
   }
 };
 
