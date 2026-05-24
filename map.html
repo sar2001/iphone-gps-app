@@ -26,11 +26,16 @@ html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
   min-width: 220px;
 }
 
-#status {
-  position:fixed; top:130px; left:10px; right:10px; z-index:9999;
-  background:white; padding:12px; border-radius:12px; text-align:center;
-  box-shadow:0 0 10px rgba(0,0,0,0.3);
-  font-size:15px;
+#trackingButton.enabled {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#stats {
+  position:fixed; top:10px; right:10px; z-index:9999;
+  width:220px; background:white; padding:12px; border-radius:12px;
+  font-size:14px; box-shadow:0 0 10px rgba(0,0,0,0.3);
+  display: none;
 }
 </style>
 </head>
@@ -40,7 +45,11 @@ html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
 <button id="centerButton">◎</button>
 <button id="trackingButton">GPS wird gesucht...</button>
 
-<div id="status">Warte auf GPS-Signal...</div>
+<div id="stats">
+Geschwindigkeit: 0 km/h<br><br>
+Strecke: 0.00 km<br><br>
+Fahrzeit: 00:00:00
+</div>
 
 <div id="map"></div>
 
@@ -86,31 +95,15 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// Erster Versuch mit getCurrentPosition + watchPosition
-function startGPS() {
-  navigator.geolocation.getCurrentPosition((position) => {
-    handlePosition(position);
-  }, (error) => {
-    console.error("getCurrentPosition Error:", error);
-  }, { enableHighAccuracy: true, timeout: 10000 });
-
-  navigator.geolocation.watchPosition(handlePosition, (error) => {
-    console.error("watchPosition Error:", error);
-    document.getElementById("status").innerHTML = "GPS-Fehler: " + error.message;
-  }, { 
-    enableHighAccuracy: true, 
-    maximumAge: 0, 
-    timeout: 30000 
-  });
-}
-
-function handlePosition(position) {
+navigator.geolocation.watchPosition((position) => {
   const lat = position.coords.latitude;
   const lng = position.coords.longitude;
   const speed = (position.coords.speed || 0) * 3.6;
 
   currentLat = lat;
   currentLng = lng;
+
+  // === MARKER AKTUALISIEREN ===
   marker.setLatLng([lat, lng]);
 
   if (!window.firstCenter) {
@@ -123,8 +116,6 @@ function handlePosition(position) {
     const btn = document.getElementById("trackingButton");
     btn.textContent = "Tracking starten";
     btn.classList.add("enabled");
-    document.getElementById("status").innerHTML = "GPS-Signal empfangen ✓";
-    console.log("✅ GPS bereit auf iPhone");
   }
 
   if (tracking) {
@@ -145,7 +136,9 @@ function handlePosition(position) {
     }
     updateStats(speed);
   }
-}
+}, (error) => {
+  console.error(error);
+}, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
 
 function updateStats(speed) {
   let duration = "00:00:00";
@@ -160,18 +153,13 @@ function updateStats(speed) {
   `;
 }
 
-// Button
+// Tracking Button
 document.getElementById("trackingButton").addEventListener("click", () => {
-  if (!gpsReady) {
-    alert("GPS wird noch gesucht.\n\nBitte erlaube die Ortung für Safari.");
-    return;
-  }
-
-  // ... Rest der Toggle-Logik bleibt gleich wie vorher ...
   const btn = document.getElementById("trackingButton");
   const statsBox = document.getElementById("stats");
 
   if (!tracking) {
+    // START
     tracking = true;
     routePoints = [];
     totalDistance = 0;
@@ -184,6 +172,7 @@ document.getElementById("trackingButton").addEventListener("click", () => {
     btn.style.background = "#ff3b30";
     statsBox.classList.add("active");
   } else {
+    // STOP
     tracking = false;
     btn.textContent = "Tracking starten";
     btn.style.background = "#007aff";
@@ -219,9 +208,6 @@ document.getElementById("menuButton").addEventListener("click", () => location.r
 document.getElementById("centerButton").addEventListener("click", () => {
   if (currentLat && currentLng) map.setView([currentLat, currentLng], 17);
 });
-
-// GPS starten
-startGPS();
 
 </script>
 </body>
