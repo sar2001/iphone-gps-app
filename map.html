@@ -23,21 +23,14 @@ html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
   position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
   z-index:9999; padding:14px 24px; border:none; border-radius:14px;
   background:#007aff; color:white; font-size:18px; box-shadow:0 0 10px rgba(0,0,0,0.3);
-  opacity: 0.6;
-  pointer-events: none;
-  min-width: 200px;
+  min-width: 220px;
 }
 
-#trackingButton.enabled {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-#stats {
-  position:fixed; top:10px; right:10px; z-index:9999;
-  width:220px; background:white; padding:12px; border-radius:12px;
-  font-size:14px; box-shadow:0 0 10px rgba(0,0,0,0.3);
-  display: none;
+#status {
+  position:fixed; top:130px; left:10px; right:10px; z-index:9999;
+  background:white; padding:12px; border-radius:12px; text-align:center;
+  box-shadow:0 0 10px rgba(0,0,0,0.3);
+  font-size:15px;
 }
 </style>
 </head>
@@ -45,13 +38,9 @@ html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
 
 <button id="menuButton">☰</button>
 <button id="centerButton">◎</button>
-<button id="trackingButton">Warte auf GPS-Signal...</button>
+<button id="trackingButton">GPS wird gesucht...</button>
 
-<div id="stats">
-Geschwindigkeit: 0 km/h<br><br>
-Strecke: 0.00 km<br><br>
-Fahrzeit: 00:00:00
-</div>
+<div id="status">Warte auf GPS-Signal...</div>
 
 <div id="map"></div>
 
@@ -73,7 +62,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const map = L.map("map", { zoomControl: true }).setView([51.505, -0.09], 13);
+const map = L.map("map").setView([51.505, -0.09], 13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution: "&copy; OpenStreetMap contributors"
 }).addTo(map);
@@ -89,7 +78,6 @@ let startTime = null;
 let lastLat = null, lastLng = null;
 let gpsReady = false;
 
-// Bessere Distanzfunktion
 function distanceMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -98,8 +86,25 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// GPS mit iOS-Optimierungen
-navigator.geolocation.watchPosition((position) => {
+// Erster Versuch mit getCurrentPosition + watchPosition
+function startGPS() {
+  navigator.geolocation.getCurrentPosition((position) => {
+    handlePosition(position);
+  }, (error) => {
+    console.error("getCurrentPosition Error:", error);
+  }, { enableHighAccuracy: true, timeout: 10000 });
+
+  navigator.geolocation.watchPosition(handlePosition, (error) => {
+    console.error("watchPosition Error:", error);
+    document.getElementById("status").innerHTML = "GPS-Fehler: " + error.message;
+  }, { 
+    enableHighAccuracy: true, 
+    maximumAge: 0, 
+    timeout: 30000 
+  });
+}
+
+function handlePosition(position) {
   const lat = position.coords.latitude;
   const lng = position.coords.longitude;
   const speed = (position.coords.speed || 0) * 3.6;
@@ -113,13 +118,13 @@ navigator.geolocation.watchPosition((position) => {
     window.firstCenter = true;
   }
 
-  // GPS bereit melden
   if (!gpsReady) {
     gpsReady = true;
     const btn = document.getElementById("trackingButton");
     btn.textContent = "Tracking starten";
     btn.classList.add("enabled");
-    console.log("✅ GPS-Signal empfangen (iOS)");
+    document.getElementById("status").innerHTML = "GPS-Signal empfangen ✓";
+    console.log("✅ GPS bereit auf iPhone");
   }
 
   if (tracking) {
@@ -140,20 +145,8 @@ navigator.geolocation.watchPosition((position) => {
     }
     updateStats(speed);
   }
-}, (error) => {
-  console.error("GPS Error:", error);
-  let msg = "GPS-Fehler: ";
-  if (error.code === 1) msg += "Zugriff verweigert";
-  else if (error.code === 2) msg += "Position nicht verfügbar";
-  else if (error.code === 3) msg += "Timeout";
-  alert(msg);
-}, { 
-  enableHighAccuracy: true, 
-  maximumAge: 0, 
-  timeout: 30000 
-});
+}
 
-// Stats Funktion
 function updateStats(speed) {
   let duration = "00:00:00";
   if (startTime) {
@@ -167,13 +160,14 @@ function updateStats(speed) {
   `;
 }
 
-// Tracking Button
-document.getElementById("trackingButton").addEventListener("click", function() {
+// Button
+document.getElementById("trackingButton").addEventListener("click", () => {
   if (!gpsReady) {
-    alert("GPS wird noch gesucht...\n\nTipp: Stelle sicher, dass Ortungsdienste für Safari aktiviert sind.");
+    alert("GPS wird noch gesucht.\n\nBitte erlaube die Ortung für Safari.");
     return;
   }
 
+  // ... Rest der Toggle-Logik bleibt gleich wie vorher ...
   const btn = document.getElementById("trackingButton");
   const statsBox = document.getElementById("stats");
 
@@ -196,11 +190,10 @@ document.getElementById("trackingButton").addEventListener("click", function() {
 
     if (routePoints.length < 2) {
       statsBox.classList.remove("active");
-      alert("Keine ausreichende Route aufgezeichnet.");
+      alert("Keine Route aufgezeichnet.");
       return;
     }
 
-    // Speichern...
     const routeName = prompt("Name der Route:", "Meine Route") || "Route";
     const date = new Date().toLocaleDateString();
     const sec = Math.floor((Date.now() - startTime) / 1000);
@@ -216,7 +209,7 @@ document.getElementById("trackingButton").addEventListener("click", function() {
       points: pointsForFirestore,
       created: Date.now()
     }).then(() => alert(`✅ Route "${routeName}" gespeichert!`))
-      .catch(e => alert("Speicherfehler: " + e.message));
+      .catch(e => alert("Fehler: " + e.message));
 
     setTimeout(() => statsBox.classList.remove("active"), 5000);
   }
@@ -227,7 +220,8 @@ document.getElementById("centerButton").addEventListener("click", () => {
   if (currentLat && currentLng) map.setView([currentLat, currentLng], 17);
 });
 
-console.log("✅ App gestartet - warte auf GPS");
+// GPS starten
+startGPS();
 
 </script>
 </body>
