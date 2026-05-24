@@ -23,6 +23,13 @@ html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
   position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
   z-index:9999; padding:14px 24px; border:none; border-radius:14px;
   background:#007aff; color:white; font-size:18px; box-shadow:0 0 10px rgba(0,0,0,0.3);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+#trackingButton.enabled {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 #stats {
@@ -36,7 +43,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
 
 <button id="menuButton" onclick="openMenu()">☰</button>
 <button id="centerButton" onclick="centerMap()">◎</button>
-<button id="trackingButton" onclick="toggleTracking()">Tracking starten</button>
+<button id="trackingButton">Warte auf GPS-Signal...</button>
 
 <div id="stats">
 Geschwindigkeit: 0 km/h<br><br>
@@ -78,8 +85,9 @@ let routePoints = [];
 let totalDistance = 0;
 let startTime = null;
 let lastLat = null, lastLng = null;
+let gpsReady = false;
 
-// Distanz
+// Distanzberechnung
 function distanceMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -89,7 +97,7 @@ function distanceMeters(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// GPS
+// GPS Watch
 navigator.geolocation.watchPosition((position) => {
   const lat = position.coords.latitude;
   const lng = position.coords.longitude;
@@ -102,6 +110,14 @@ navigator.geolocation.watchPosition((position) => {
   if (!window.firstCenter) {
     map.setView([lat, lng], 17);
     window.firstCenter = true;
+  }
+
+  // === GPS ist bereit ===
+  if (!gpsReady) {
+    gpsReady = true;
+    const btn = document.getElementById("trackingButton");
+    btn.textContent = "Tracking starten";
+    btn.classList.add("enabled");
   }
 
   if (tracking) {
@@ -136,12 +152,19 @@ navigator.geolocation.watchPosition((position) => {
     Strecke: ${(totalDistance / 1000).toFixed(2)} km<br><br>
     Fahrzeit: ${duration}
   `;
-}, (error) => console.error(error), { enableHighAccuracy: true });
+}, (error) => {
+  console.error(error);
+}, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
 
 // ========================================
 // TRACKING
 // ========================================
 window.toggleTracking = async function () {
+  if (!gpsReady) {
+    alert("Bitte warte bis ein GPS-Signal empfangen wurde.");
+    return;
+  }
+
   const btn = document.getElementById("trackingButton");
 
   if (!tracking) {
@@ -152,11 +175,11 @@ window.toggleTracking = async function () {
     lastLat = null;
     lastLng = null;
     routeLine.setLatLngs([]);
-    btn.innerText = "Tracking stoppen";
+    btn.textContent = "Tracking stoppen";
     btn.style.background = "#ff3b30";
   } else {
     tracking = false;
-    btn.innerText = "Tracking starten";
+    btn.textContent = "Tracking starten";
     btn.style.background = "#007aff";
 
     if (routePoints.length < 2) {
@@ -173,7 +196,6 @@ window.toggleTracking = async function () {
     const s = String(sec % 60).padStart(2, "0");
     const duration = `${h}:${m}:${s}`;
 
-    // === WICHTIG: Umwandeln in Array von Objekten ===
     const pointsForFirestore = routePoints.map(p => ({ lat: p[0], lng: p[1] }));
 
     try {
@@ -182,7 +204,7 @@ window.toggleTracking = async function () {
         date: date,
         distance: (totalDistance / 1000).toFixed(2),
         duration: duration,
-        points: pointsForFirestore,        // ← Jetzt gültig!
+        points: pointsForFirestore,
         created: Date.now()
       });
       alert(`✅ Route "${routeName}" gespeichert!\n${routePoints.length} Punkte • ${(totalDistance/1000).toFixed(2)} km`);
@@ -196,18 +218,14 @@ window.toggleTracking = async function () {
 window.openMenu = () => location.replace("menu.html");
 window.centerMap = () => currentLat && currentLng && map.setView([currentLat, currentLng], 17);
 
-// === Route aus Menu laden ===
+// Geladene Route anzeigen
 const selectedRouteId = localStorage.getItem("selectedRouteId");
 if (selectedRouteId) {
   try {
     const routeDoc = await getDoc(doc(db, "routes", selectedRouteId));
     if (routeDoc.exists()) {
       const route = routeDoc.data();
-      // Unterstützung für beide Formate (alt + neu)
-      const points = route.points.map(p => {
-        if (Array.isArray(p)) return [p[0], p[1]];
-        return [p.lat, p.lng];
-      });
+      const points = route.points.map(p => Array.isArray(p) ? [p[0], p[1]] : [p.lat, p.lng]);
       routeLine.setLatLngs(points);
       L.marker(points[0]).addTo(map);
       L.marker(points[points.length-1]).addTo(map);
