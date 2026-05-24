@@ -25,7 +25,6 @@ html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
   background:#007aff; color:white; font-size:18px; box-shadow:0 0 10px rgba(0,0,0,0.3);
   opacity: 0.6;
   pointer-events: none;
-  transition: all 0.3s;
 }
 
 #trackingButton.enabled {
@@ -43,9 +42,9 @@ html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
 </head>
 <body>
 
-<button id="menuButton" onclick="openMenu()">☰</button>
-<button id="centerButton" onclick="centerMap()">◎</button>
-<button id="trackingButton">Warte auf GPS-Signal...</button>
+<button id="menuButton">☰</button>
+<button id="centerButton">◎</button>
+<button id="trackingButton" onclick="toggleTracking()">Warte auf GPS-Signal...</button>
 
 <div id="stats">
 Geschwindigkeit: 0 km/h<br><br>
@@ -56,10 +55,9 @@ Fahrzeit: 00:00:00
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script type="module">
+<script>
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, collection, addDoc, getDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+// === KEIN type="module" mehr - einfacher Script ===
 
 const firebaseConfig = {
   apiKey: "AIzaSyBg_-8LeU72a-mj_zNyezr4zlXtJoHxi9c",
@@ -70,8 +68,8 @@ const firebaseConfig = {
   appId: "1:200005558812:web:a6a89a131a35aad57ab5d9"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 const map = L.map("map").setView([51.505, -0.09], 13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -89,13 +87,11 @@ let startTime = null;
 let lastLat = null, lastLng = null;
 let gpsReady = false;
 
-// Distanz
 function distanceMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2)*Math.sin(dLat/2) + 
-            Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
@@ -114,13 +110,12 @@ navigator.geolocation.watchPosition((position) => {
     window.firstCenter = true;
   }
 
-  // GPS bereit
   if (!gpsReady) {
     gpsReady = true;
     const btn = document.getElementById("trackingButton");
     btn.textContent = "Tracking starten";
     btn.classList.add("enabled");
-    console.log("✅ GPS-Signal empfangen – Button aktiviert");
+    console.log("✅ GPS bereit");
   }
 
   if (tracking) {
@@ -139,14 +134,9 @@ navigator.geolocation.watchPosition((position) => {
         lastLng = lng;
       }
     }
+    updateStats(speed);
   }
-
-  if (tracking) updateStats(speed);
-
-}, (error) => {
-  console.error("GPS Error:", error);
-  alert("GPS-Fehler: " + error.message);
-}, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+}, (error) => console.error(error), { enableHighAccuracy: true });
 
 function updateStats(speed) {
   let duration = "00:00:00";
@@ -161,9 +151,8 @@ function updateStats(speed) {
   `;
 }
 
-// TRACKING
 window.toggleTracking = function () {
-  console.log("toggleTracking aufgerufen – tracking war:", tracking);
+  console.log("🟢 toggleTracking wurde aufgerufen!");
 
   if (!gpsReady) {
     alert("GPS-Signal wird noch gesucht...");
@@ -174,8 +163,7 @@ window.toggleTracking = function () {
   const statsBox = document.getElementById("stats");
 
   if (!tracking) {
-    // START
-    console.log("🚀 Tracking START");
+    console.log("🚀 TRACKING START");
     tracking = true;
     routePoints = [];
     totalDistance = 0;
@@ -188,8 +176,7 @@ window.toggleTracking = function () {
     btn.style.background = "#ff3b30";
     statsBox.classList.add("active");
   } else {
-    // STOP
-    console.log("⛔ Tracking STOP");
+    console.log("⛔ TRACKING STOP");
     tracking = false;
     btn.textContent = "Tracking starten";
     btn.style.background = "#007aff";
@@ -200,7 +187,7 @@ window.toggleTracking = function () {
       return;
     }
 
-    // ... Speichercode bleibt gleich ...
+    // Speichern
     const routeName = prompt("Name der Route:", "Meine Route") || "Route";
     const date = new Date().toLocaleDateString();
     const sec = Math.floor((Date.now() - startTime) / 1000);
@@ -208,7 +195,7 @@ window.toggleTracking = function () {
 
     const pointsForFirestore = routePoints.map(p => ({ lat: p[0], lng: p[1] }));
 
-    addDoc(collection(db, "routes"), {
+    db.collection("routes").add({
       name: routeName,
       date: date,
       distance: (totalDistance / 1000).toFixed(2),
@@ -216,7 +203,7 @@ window.toggleTracking = function () {
       points: pointsForFirestore,
       created: Date.now()
     }).then(() => {
-      alert(`✅ Gespeichert: ${routeName} (${routePoints.length} Punkte)`);
+      alert(`✅ Route "${routeName}" gespeichert!`);
     }).catch(e => {
       console.error(e);
       alert("Speicherfehler: " + e.message);
@@ -226,24 +213,12 @@ window.toggleTracking = function () {
   }
 };
 
-window.openMenu = () => location.replace("menu.html");
-window.centerMap = () => currentLat && currentLng && map.setView([currentLat, currentLng], 17);
+document.getElementById("menuButton").addEventListener("click", () => location.replace("menu.html"));
+document.getElementById("centerButton").addEventListener("click", () => {
+  if (currentLat && currentLng) map.setView([currentLat, currentLng], 17);
+});
 
-// Route laden
-const selectedRouteId = localStorage.getItem("selectedRouteId");
-if (selectedRouteId) {
-  getDoc(doc(db, "routes", selectedRouteId)).then(docSnap => {
-    if (docSnap.exists()) {
-      const route = docSnap.data();
-      const points = route.points.map(p => [p.lat || p[0], p.lng || p[1]]);
-      routeLine.setLatLngs(points);
-      L.marker(points[0]).addTo(map);
-      L.marker(points[points.length-1]).addTo(map);
-      map.fitBounds(routeLine.getBounds());
-    }
-  });
-  localStorage.removeItem("selectedRouteId");
-}
+console.log("✅ Karte vollständig geladen");
 
 </script>
 </body>
