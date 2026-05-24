@@ -44,7 +44,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
 
 <button id="menuButton">☰</button>
 <button id="centerButton">◎</button>
-<button id="trackingButton" onclick="toggleTracking()">Warte auf GPS-Signal...</button>
+<button id="trackingButton">Warte auf GPS-Signal...</button>
 
 <div id="stats">
 Geschwindigkeit: 0 km/h<br><br>
@@ -55,9 +55,10 @@ Fahrzeit: 00:00:00
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script>
+<script type="module">
 
-// === KEIN type="module" mehr - einfacher Script ===
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, addDoc, getDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBg_-8LeU72a-mj_zNyezr4zlXtJoHxi9c",
@@ -68,8 +69,8 @@ const firebaseConfig = {
   appId: "1:200005558812:web:a6a89a131a35aad57ab5d9"
 };
 
-const app = firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 const map = L.map("map").setView([51.505, -0.09], 13);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -115,7 +116,7 @@ navigator.geolocation.watchPosition((position) => {
     const btn = document.getElementById("trackingButton");
     btn.textContent = "Tracking starten";
     btn.classList.add("enabled");
-    console.log("✅ GPS bereit");
+    console.log("✅ GPS-Signal empfangen");
   }
 
   if (tracking) {
@@ -136,7 +137,9 @@ navigator.geolocation.watchPosition((position) => {
     }
     updateStats(speed);
   }
-}, (error) => console.error(error), { enableHighAccuracy: true });
+}, (error) => {
+  console.error("GPS Error:", error);
+}, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
 
 function updateStats(speed) {
   let duration = "00:00:00";
@@ -151,11 +154,12 @@ function updateStats(speed) {
   `;
 }
 
-window.toggleTracking = function () {
-  console.log("🟢 toggleTracking wurde aufgerufen!");
+// Button mit Event Listener
+document.getElementById("trackingButton").addEventListener("click", function toggleTracking() {
+  console.log("🟢 Button geklickt!");
 
   if (!gpsReady) {
-    alert("GPS-Signal wird noch gesucht...");
+    alert("Bitte warte auf GPS-Signal...");
     return;
   }
 
@@ -163,7 +167,6 @@ window.toggleTracking = function () {
   const statsBox = document.getElementById("stats");
 
   if (!tracking) {
-    console.log("🚀 TRACKING START");
     tracking = true;
     routePoints = [];
     totalDistance = 0;
@@ -175,8 +178,8 @@ window.toggleTracking = function () {
     btn.textContent = "Tracking stoppen";
     btn.style.background = "#ff3b30";
     statsBox.classList.add("active");
+    console.log("🚀 Tracking gestartet");
   } else {
-    console.log("⛔ TRACKING STOP");
     tracking = false;
     btn.textContent = "Tracking starten";
     btn.style.background = "#007aff";
@@ -187,7 +190,6 @@ window.toggleTracking = function () {
       return;
     }
 
-    // Speichern
     const routeName = prompt("Name der Route:", "Meine Route") || "Route";
     const date = new Date().toLocaleDateString();
     const sec = Math.floor((Date.now() - startTime) / 1000);
@@ -195,7 +197,7 @@ window.toggleTracking = function () {
 
     const pointsForFirestore = routePoints.map(p => ({ lat: p[0], lng: p[1] }));
 
-    db.collection("routes").add({
+    addDoc(collection(db, "routes"), {
       name: routeName,
       date: date,
       distance: (totalDistance / 1000).toFixed(2),
@@ -211,14 +213,14 @@ window.toggleTracking = function () {
 
     setTimeout(() => statsBox.classList.remove("active"), 5000);
   }
-};
+});
 
 document.getElementById("menuButton").addEventListener("click", () => location.replace("menu.html"));
 document.getElementById("centerButton").addEventListener("click", () => {
   if (currentLat && currentLng) map.setView([currentLat, currentLng], 17);
 });
 
-console.log("✅ Karte vollständig geladen");
+console.log("✅ Script vollständig geladen");
 
 </script>
 </body>
