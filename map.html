@@ -1,12 +1,9 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-
 <meta charset="UTF-8" />
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
-
 <title>GPS Map V2</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
@@ -30,11 +27,10 @@ html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
 
 #stats {
   position:fixed; top:10px; right:10px; z-index:9999;
-  width:200px; background:white; padding:12px; border-radius:12px;
+  width:220px; background:white; padding:12px; border-radius:12px;
   font-size:14px; box-shadow:0 0 10px rgba(0,0,0,0.3);
 }
 </style>
-
 </head>
 <body>
 
@@ -44,7 +40,7 @@ html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
 
 <div id="stats">
 Geschwindigkeit: 0 km/h<br><br>
-Strecke: 0 km<br><br>
+Strecke: 0.00 km<br><br>
 Fahrzeit: 00:00:00
 </div>
 
@@ -83,26 +79,21 @@ let totalDistance = 0;
 let startTime = null;
 let lastLat = null, lastLng = null;
 
-// ========================================
-// DISTANZBERECHNUNG
-// ========================================
+// Distanzberechnung
 function distanceMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+  const a = Math.sin(dLat/2)*Math.sin(dLat/2) + 
+            Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// ========================================
-// GPS WATCH
-// ========================================
+// GPS
 navigator.geolocation.watchPosition((position) => {
   const lat = position.coords.latitude;
   const lng = position.coords.longitude;
+  const speed = (position.coords.speed || 0) * 3.6;
 
   currentLat = lat;
   currentLng = lng;
@@ -113,22 +104,15 @@ navigator.geolocation.watchPosition((position) => {
     window.firstCenter = true;
   }
 
-  const speed = (position.coords.speed || 0) * 3.6;
-
-  // ==================== TRACKING ====================
   if (tracking) {
-    // Ersten Punkt sofort hinzufügen
     if (routePoints.length === 0) {
-      routePoints.push([lat, lng]);
+      routePoints = [[lat, lng]];
       routeLine.setLatLngs(routePoints);
       lastLat = lat;
       lastLng = lng;
-    } 
-    // Weitere Punkte nur bei ausreichender Bewegung
-    else if (lastLat !== null) {
+    } else if (lastLat !== null) {
       const dist = distanceMeters(lastLat, lastLng, lat, lng);
-      
-      if (dist > 5) {
+      if (dist > 4) {                    // etwas niedrigerer Schwellwert
         totalDistance += dist;
         routePoints.push([lat, lng]);
         routeLine.setLatLngs(routePoints);
@@ -138,7 +122,7 @@ navigator.geolocation.watchPosition((position) => {
     }
   }
 
-  // Fahrzeit
+  // Zeit berechnen
   let duration = "00:00:00";
   if (startTime) {
     const sec = Math.floor((Date.now() - startTime) / 1000);
@@ -153,20 +137,17 @@ navigator.geolocation.watchPosition((position) => {
     Strecke: ${(totalDistance / 1000).toFixed(2)} km<br><br>
     Fahrzeit: ${duration}
   `;
-}, (error) => {
-  console.error(error);
-  alert("GPS Fehler: " + error.message);
-}, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+}, (error) => console.error(error), { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
 
 // ========================================
-// TRACKING START/STOP
+// TRACKING STEUERUNG
 // ========================================
 window.toggleTracking = async function () {
-  tracking = !tracking;
   const btn = document.getElementById("trackingButton");
 
-  if (tracking) {
-    // Start
+  if (!tracking) {
+    // === START ===
+    tracking = true;
     routePoints = [];
     totalDistance = 0;
     startTime = Date.now();
@@ -174,17 +155,19 @@ window.toggleTracking = async function () {
     lastLng = null;
     routeLine.setLatLngs([]);
     btn.innerText = "Tracking stoppen";
+    btn.style.background = "#ff3b30";
   } else {
-    // Stop
+    // === STOP ===
     tracking = false;
     btn.innerText = "Tracking starten";
+    btn.style.background = "#007aff";
 
     if (routePoints.length < 2) {
-      alert("Keine ausreichende Route aufgezeichnet (zu kurze Strecke).");
+      alert("Keine Route aufgezeichnet (zu kurze Strecke).");
       return;
     }
 
-    const routeName = prompt("Name der Route:", "Meine Route");
+    const routeName = prompt("Name der Route:", "Meine Route") || "Route";
     const date = new Date().toLocaleDateString();
 
     const sec = Math.floor((Date.now() - startTime) / 1000);
@@ -193,31 +176,29 @@ window.toggleTracking = async function () {
     const s = String(sec % 60).padStart(2, "0");
     const duration = `${h}:${m}:${s}`;
 
-    // Speichern
     try {
       const docRef = await addDoc(collection(db, "routes"), {
-        name: routeName || "Route",
+        name: routeName,
         date: date,
         distance: (totalDistance / 1000).toFixed(2),
         duration: duration,
         points: routePoints,
         created: Date.now()
       });
-
-      alert(`✅ Route "${routeName}" gespeichert! (${routePoints.length} Punkte)`);
+      alert(`✅ Route "${routeName}" gespeichert! (${routePoints.length} Punkte, ${ (totalDistance/1000).toFixed(2) } km)`);
     } catch (e) {
       console.error(e);
-      alert("Fehler beim Speichern: " + e.message);
+      alert("Speicherfehler: " + (e.message || e.code));
     }
   }
 };
 
-window.openMenu = () => window.location.replace("menu.html");
+window.openMenu = () => location.replace("menu.html");
 window.centerMap = () => {
   if (currentLat && currentLng) map.setView([currentLat, currentLng], 17);
 };
 
-// Route laden (aus Menu)
+// Geladene Route anzeigen
 const selectedRouteId = localStorage.getItem("selectedRouteId");
 if (selectedRouteId) {
   try {
@@ -230,9 +211,7 @@ if (selectedRouteId) {
       L.marker(latlngs[latlngs.length-1]).addTo(map);
       map.fitBounds(routeLine.getBounds());
     }
-  } catch (e) {
-    console.error(e);
-  }
+  } catch (e) { console.error(e); }
   localStorage.removeItem("selectedRouteId");
 }
 
