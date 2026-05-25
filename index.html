@@ -39,20 +39,44 @@ body, html {
   padding: 10px;
   border-radius: 10px;
   z-index: 9999;
+  font-size: 14px;
 }
 
-button {
+#btnGps {
   position: fixed;
   bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 14px 20px;
+  left: 20px;
+  right: 50%;
+  margin-right: 10px;
+  padding: 14px 0;
   border: none;
   background: #007aff;
   color: white;
   border-radius: 12px;
   font-size: 16px;
   z-index: 9999;
+  cursor: pointer;
+}
+
+#btnRecord {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  right: 20px;
+  margin-left: 10px;
+  padding: 14px 0;
+  border: none;
+  background: #34c759;
+  color: white;
+  border-radius: 12px;
+  font-size: 16px;
+  z-index: 9999;
+  cursor: pointer;
+  display: none;
+}
+
+#btnRecord.active {
+  background: #ff3b30;
 }
 
 </style>
@@ -63,7 +87,8 @@ button {
 
 <div id="info">GPS App startet...</div>
 
-<button onclick="startGPS()">Start GPS</button>
+<button id="btnGps" onclick="startGPS()">Start GPS</button>
+<button id="btnRecord" onclick="toggleRecording()">Aufzeichnung</button>
 
 <div id="map"></div>
 
@@ -75,6 +100,34 @@ let map;
 let marker;
 let watchId;
 let usingHighAccuracy = true;
+
+let routePoints = [];
+let routeLine;
+let isRecording = false;
+let totalDistance = 0;
+
+function calcDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function updateInfo(lat, lng, acc) {
+  let mode = usingHighAccuracy ? "GPS" : "Mobilfunk/WLAN";
+  let html = "Modus: " + mode +
+    "<br>Lat: " + lat.toFixed(6) +
+    "<br>Lng: " + lng.toFixed(6) +
+    "<br>Genauigkeit: " + Math.round(acc) + "m";
+  if (isRecording) {
+    html += "<br><b>Aufzeichnung läuft</b>" +
+      "<br>Strecke: " + (totalDistance / 1000).toFixed(2) + " km";
+  }
+  document.getElementById("info").innerHTML = html;
+}
 
 function startWatching(highAccuracy) {
   usingHighAccuracy = highAccuracy;
@@ -88,17 +141,23 @@ function startWatching(highAccuracy) {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
       const acc = pos.coords.accuracy;
-      let mode = usingHighAccuracy ? "GPS" : "Mobilfunk/WLAN";
 
-      document.getElementById("info").innerHTML =
-        "Modus: " + mode +
-        "<br>Lat: " + lat.toFixed(6) +
-        "<br>Lng: " + lng.toFixed(6) +
-        "<br>Genauigkeit: " + Math.round(acc) + "m";
+      if (isRecording) {
+        let last = routePoints.length > 0 ? routePoints[routePoints.length - 1] : null;
+        if (last) {
+          totalDistance += calcDistance(last[0], last[1], lat, lng);
+        }
+        routePoints.push([lat, lng]);
+        if (routeLine) {
+          routeLine.setLatLngs(routePoints);
+        }
+      }
+
+      updateInfo(lat, lng, acc);
 
       if (marker && map) {
-        marker.setLatLng([lat,lng]);
-        map.setView([lat,lng], 16);
+        marker.setLatLng([lat, lng]);
+        map.setView([lat, lng], 16);
       }
 
     },
@@ -137,8 +196,24 @@ function startGPS() {
       attribution: '&copy; OpenStreetMap'
     }).addTo(map);
     marker = L.marker([0,0]).addTo(map);
+    document.getElementById("btnRecord").style.display = "block";
   } catch (e) {
     document.getElementById("info").innerHTML += "<br><small>Karte nicht verfügbar</small>";
+  }
+}
+
+function toggleRecording() {
+  isRecording = !isRecording;
+  var btn = document.getElementById("btnRecord");
+  if (isRecording) {
+    routePoints = [];
+    totalDistance = 0;
+    routeLine = L.polyline([], { color: "red", weight: 4 }).addTo(map);
+    btn.innerHTML = "● Stopp";
+    btn.className = "active";
+  } else {
+    btn.innerHTML = "Aufzeichnung";
+    btn.className = "";
   }
 }
 
