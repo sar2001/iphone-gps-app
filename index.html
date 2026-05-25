@@ -1,17 +1,383 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 <head>
 
 <meta charset="UTF-8">
 
 <meta
-  http-equiv="refresh"
-  content="0; url=map.html"
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
 />
+
+<title>GPS App V1</title>
+
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet/dist/leaflet.css"
+/>
+
+<style>
+
+html,
+body {
+
+  margin: 0;
+  padding: 0;
+
+  width: 100%;
+  height: 100%;
+
+  font-family: Arial, sans-serif;
+
+  overflow: hidden;
+}
+
+/* Karte */
+
+#map {
+
+  width: 100%;
+  height: 100vh;
+
+  display: none;
+}
+
+/* Startseite */
+
+#home {
+
+  position: absolute;
+
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 100%;
+
+  background: #f2f2f2;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  padding: 20px;
+
+  box-sizing: border-box;
+}
+
+/* Titel */
+
+h1 {
+
+  margin-bottom: 40px;
+}
+
+/* GPS Status */
+
+#gpsStatus {
+
+  width: 90%;
+
+  max-width: 400px;
+
+  background: white;
+
+  padding: 20px;
+
+  border-radius: 15px;
+
+  text-align: center;
+
+  box-shadow:
+    0 0 10px rgba(0,0,0,0.2);
+
+  margin-bottom: 30px;
+
+  font-size: 18px;
+}
+
+/* Buttons */
+
+button {
+
+  width: 90%;
+
+  max-width: 400px;
+
+  padding: 16px;
+
+  margin-top: 15px;
+
+  border: none;
+
+  border-radius: 14px;
+
+  background: #007aff;
+
+  color: white;
+
+  font-size: 18px;
+}
+
+/* Zurück Button */
+
+#backButton {
+
+  position: fixed;
+
+  top: 10px;
+  left: 10px;
+
+  z-index: 9999;
+
+  width: 50px;
+  height: 50px;
+
+  border-radius: 10px;
+
+  font-size: 24px;
+
+  display: none;
+}
+
+</style>
 
 </head>
 
 <body>
-Weiterleitung...
+
+<!-- STARTSEITE -->
+
+<div id="home">
+
+  <h1>
+    GPS App V1
+  </h1>
+
+  <div id="gpsStatus">
+
+    Prüfe GPS...
+
+  </div>
+
+  <button
+    id="mapButton"
+    onclick="showMap()"
+    disabled
+  >
+
+    Aktuelle Position anzeigen
+
+  </button>
+
+</div>
+
+<!-- ZURÜCK -->
+
+<button
+  id="backButton"
+  onclick="showHome()"
+>
+←
+</button>
+
+<!-- KARTE -->
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+
+// ========================================
+// Variablen
+// ========================================
+
+let currentLat = null;
+let currentLng = null;
+
+let map;
+let marker;
+
+// ========================================
+// GPS prüfen
+// ========================================
+
+if (!navigator.geolocation) {
+
+  document.getElementById(
+    "gpsStatus"
+  ).innerHTML =
+
+    "❌ GPS nicht unterstützt";
+}
+
+else {
+
+  navigator.geolocation.getCurrentPosition(
+
+    (position) => {
+
+      currentLat =
+        position.coords.latitude;
+
+      currentLng =
+        position.coords.longitude;
+
+      const accuracy =
+        Math.round(
+          position.coords.accuracy
+        );
+
+      document.getElementById(
+        "gpsStatus"
+      ).innerHTML = `
+
+        ✅ GPS verfügbar
+
+        <br><br>
+
+        Breitengrad:
+        ${currentLat.toFixed(6)}
+
+        <br><br>
+
+        Längengrad:
+        ${currentLng.toFixed(6)}
+
+        <br><br>
+
+        Genauigkeit:
+        ${accuracy} m
+      `;
+
+      // Button aktivieren
+
+      document.getElementById(
+        "mapButton"
+      ).disabled = false;
+    },
+
+    (error) => {
+
+      document.getElementById(
+        "gpsStatus"
+      ).innerHTML =
+
+        "❌ GPS Fehler";
+    },
+
+    {
+
+      enableHighAccuracy: true,
+
+      timeout: 10000,
+
+      maximumAge: 0
+    }
+  );
+}
+
+// ========================================
+// Karte anzeigen
+// ========================================
+
+window.showMap =
+function () {
+
+  document.getElementById(
+    "home"
+  ).style.display = "none";
+
+  document.getElementById(
+    "map"
+  ).style.display = "block";
+
+  document.getElementById(
+    "backButton"
+  ).style.display = "block";
+
+  // Karte nur einmal erzeugen
+
+  if (!map) {
+
+    map =
+      L.map("map")
+      .setView(
+        [currentLat, currentLng],
+        17
+      );
+
+    L.tileLayer(
+
+      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+
+      {
+
+        attribution:
+          "&copy; OpenStreetMap contributors"
+      }
+
+    ).addTo(map);
+
+    marker =
+      L.marker(
+        [currentLat, currentLng]
+      ).addTo(map);
+
+    marker.bindPopup(
+
+      "Aktuelle Position"
+
+    ).openPopup();
+  }
+
+  else {
+
+    map.setView(
+      [currentLat, currentLng],
+      17
+    );
+
+    marker.setLatLng(
+      [currentLat, currentLng]
+    );
+  }
+
+  // Leaflet Resize Fix
+
+  setTimeout(() => {
+
+    map.invalidateSize();
+
+  }, 200);
+};
+
+// ========================================
+// Zurück
+// ========================================
+
+window.showHome =
+function () {
+
+  document.getElementById(
+    "home"
+  ).style.display = "flex";
+
+  document.getElementById(
+    "map"
+  ).style.display = "none";
+
+  document.getElementById(
+    "backButton"
+  ).style.display = "none";
+};
+
+</script>
+
 </body>
 </html>
