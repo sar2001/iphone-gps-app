@@ -357,7 +357,9 @@ cameraInput.addEventListener("change", function(e) {
 function addWaypoint() {
   if (!marker || !marker.getLatLng()) return;
   var pos = marker.getLatLng();
-  var label = "HP " + (waypoints.length + 1);
+  var defaultLabel = "HP " + (waypoints.length + 1);
+  var label = prompt("Name des Haltepunkts:", defaultLabel);
+  if (!label) label = defaultLabel;
   var wp = { lat: pos.lat, lng: pos.lng, label: label };
   var icon = L.divIcon({
     className: "",
