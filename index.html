@@ -226,6 +226,8 @@ function startGPS() {
     marker = L.marker([0,0]).addTo(map);
     document.getElementById("btnRecord").style.display = "block";
     document.getElementById("btnRoutes").style.display = "block";
+  } catch (e) {
+    document.getElementById("info").innerHTML += "<br><small>Karte nicht verfügbar</small>";
   }
 }
 
