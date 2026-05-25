@@ -225,7 +225,7 @@ function buildGeoJSON() {
   };
 }
 
-function saveToFirebase() {
+function saveToFirebase(name) {
   if (routePoints.length < 2) {
     firebaseStatus = "✗ Zu wenig Punkte (" + routePoints.length + ")";
     return;
@@ -237,14 +237,20 @@ function saveToFirebase() {
   }, 10000);
   try {
     const data = buildGeoJSON();
-    fbSaveGeoJSON(data)
+    fbSaveGeoJSON(data, name)
       .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
       .then(function(res) {
         clearTimeout(timeout);
         if (res.ok) {
           var id = res.data.name.split("/").pop();
-          firebaseStatus = "✓ Gespeichert (" + id.slice(0,6) + ")";
+          firebaseStatus = "✓ " + name + " gespeichert (" + id.slice(0,6) + ")";
         } else {
+          var msg = res.data.error && res.data.error.message ? res.data.error.message :
+                    res.data.error ? (typeof res.data.error === "string" ? res.data.error : JSON.stringify(res.data.error)) :
+                    JSON.stringify(res.data);
+          firebaseStatus = "✗ " + msg;
+        }
+      })
           var msg = res.data.error && res.data.error.message ? res.data.error.message :
                     res.data.error ? (typeof res.data.error === "string" ? res.data.error : JSON.stringify(res.data.error)) :
                     JSON.stringify(res.data);
@@ -275,7 +281,12 @@ function toggleRecording() {
   } else {
     btn.innerHTML = "Aufzeichnung";
     btn.className = "";
-    saveToFirebase();
+    var routeName = prompt("Name der Route:", "Route " + new Date().toLocaleDateString("de-DE"));
+    if (routeName) {
+      saveToFirebase(routeName);
+    } else {
+      firebaseStatus = "✗ Abgebrochen";
+    }
   }
 }
 
@@ -305,7 +316,7 @@ function fbSignIn() {
   });
 }
 
-function fbSaveGeoJSON(data) {
+function fbSaveGeoJSON(data, name) {
   if (!fbToken) {
     firebaseStatus = "✗ Nicht angemeldet";
     return Promise.reject("No token");
@@ -315,6 +326,7 @@ function fbSaveGeoJSON(data) {
   var body = {
     fields: {
       type: { stringValue: data.type },
+      name: { stringValue: name || "Unbenannt" },
       timestamp: { stringValue: new Date().toISOString() },
       totalDistance: { doubleValue: data.features[0].properties.totalDistance },
       geoJSON: { stringValue: JSON.stringify(data) }
