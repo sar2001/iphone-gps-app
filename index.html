@@ -128,6 +128,7 @@ body, html {
 <button id="btnRecord" onclick="toggleRecording()">Aufzeichnung</button>
 <button id="btnRoutes" onclick="loadRoutes()">Routen</button>
 <button id="btnWaypoint" onclick="addWaypoint()">📍</button>
+<input type="file" accept="image/*" capture="environment" id="cameraInput" style="display:none">
 
 <div id="map"></div>
 
@@ -274,7 +275,9 @@ function buildGeoJSON() {
   };
   if (waypoints.length > 0) {
     feature.properties.waypoints = waypoints.map(function(w) {
-      return { lat: w.lat, lng: w.lng, label: w.label };
+      var obj = { lat: w.lat, lng: w.lng, label: w.label };
+      if (w.photo) obj.photo = w.photo;
+      return obj;
     });
   }
   return { type: "FeatureCollection", features: [feature] };
@@ -318,20 +321,61 @@ function saveToFirebase(name) {
   }
 }
 
+var pendingWaypoint = null;
+var cameraInput = document.getElementById("cameraInput");
+
+cameraInput.addEventListener("change", function(e) {
+  var file = e.target.files[0];
+  if (!file || !pendingWaypoint) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var img = new Image();
+    img.onload = function() {
+      var max = 400;
+      var w = img.width, h = img.height;
+      if (w > max || h > max) {
+        if (w > h) { h = h * max / w; w = max; }
+        else { w = w * max / h; h = max; }
+      }
+      var c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      var ctx = c.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      pendingWaypoint.photo = c.toDataURL("image/jpeg", 0.7);
+      pendingWaypoint.popup.setContent(
+        pendingWaypoint.label + "<br><img src='" + pendingWaypoint.photo +
+        "' style='width:100px;border-radius:6px;margin-top:4px'>"
+      );
+      pendingWaypoint = null;
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  cameraInput.value = "";
+});
+
 function addWaypoint() {
   if (!marker || !marker.getLatLng()) return;
   var pos = marker.getLatLng();
   var label = "HP " + (waypoints.length + 1);
-  waypoints.push({ lat: pos.lat, lng: pos.lng, label: label });
+  var wp = { lat: pos.lat, lng: pos.lng, label: label };
   var icon = L.divIcon({
     className: "",
-    html: "<div style='background:#af52de;color:#fff;width:28px;height:28px;border-radius:14px;text-align:center;line-height:28px;font-size:12px;font-weight:bold;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.3)'>" + waypoints.length + "</div>",
+    html: "<div style='background:#af52de;color:#fff;width:28px;height:28px;border-radius:14px;text-align:center;line-height:28px;font-size:12px;font-weight:bold;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.3)'>" + (waypoints.length + 1) + "</div>",
     iconSize: [28, 28],
     iconAnchor: [14, 14]
   });
   var m = L.marker([pos.lat, pos.lng], { icon: icon }).addTo(map);
   m.bindPopup(label);
+  wp.marker = m;
+  wp.popup = m.getPopup();
+  waypoints.push(wp);
   waypointMarkers.push(m);
+
+  if (confirm("Foto machen?")) {
+    pendingWaypoint = wp;
+    cameraInput.click();
+  }
 }
 
 function toggleRecording() {
@@ -420,11 +464,30 @@ function showRoute(doc) {
   map.fitBounds(line.getBounds().pad(0.1));
   var dist = (fields.totalDistance && fields.totalDistance.doubleValue
     ? fields.totalDistance.doubleValue : 0) / 1000;
-  document.getElementById("info").innerHTML =
-    "<b>" + (fields.name ? fields.name.stringValue : "Unbenannt") + "</b>" +
+  var infoText = "<b>" + (fields.name ? fields.name.stringValue : "Unbenannt") + "</b>" +
     "<br>" + dist.toFixed(2) + " km" +
-    "<br>" + coords.length + " Punkte" +
-    "<br><small>Routen laden zum Anzeigen aller</small>";
+    "<br>" + coords.length + " Punkte";
+  var wps = geo.features[0].properties.waypoints;
+  if (wps && wps.length > 0) {
+    infoText += "<br>📍 " + wps.length + " Haltepunkte";
+    for (var i = 0; i < wps.length; i++) {
+      var wp = wps[i];
+      var wpLabel = wp.label || "HP " + (i + 1);
+      var wpIcon = L.divIcon({
+        className: "",
+        html: "<div style='background:#af52de;color:#fff;width:28px;height:28px;border-radius:14px;text-align:center;line-height:28px;font-size:12px;font-weight:bold;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.3)'>" + (i + 1) + "</div>",
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+      var m = L.marker([wp.lat, wp.lng], { icon: wpIcon }).addTo(map);
+      var popupHtml = wpLabel;
+      if (wp.photo) popupHtml += "<br><img src='" + wp.photo + "' style='width:120px;border-radius:6px;margin-top:4px'>";
+      m.bindPopup(popupHtml);
+      waypointMarkers.push(m);
+    }
+  }
+  infoText += "<br><small>Routen laden zum Anzeigen aller</small>";
+  document.getElementById("info").innerHTML = infoText;
   document.getElementById("btnRoutes").innerHTML = "← Routen";
 }
 
