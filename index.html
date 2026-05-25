@@ -9,7 +9,7 @@
   content="width=device-width, initial-scale=1.0"
 />
 
-<title>GPS App V1</title>
+<title>GPS App V2</title>
 
 <link
   rel="stylesheet"
@@ -30,19 +30,11 @@ body {
   font-family: Arial, sans-serif;
 
   overflow: hidden;
+
+  background: #f2f2f2;
 }
 
-/* Karte */
-
-#map {
-
-  width: 100%;
-  height: 100vh;
-
-  display: none;
-}
-
-/* Startseite */
+/* STARTSEITE */
 
 #home {
 
@@ -53,8 +45,6 @@ body {
 
   width: 100%;
   height: 100%;
-
-  background: #f2f2f2;
 
   display: flex;
 
@@ -69,44 +59,65 @@ body {
   box-sizing: border-box;
 }
 
-/* Titel */
+/* KARTE */
+
+#map {
+
+  width: 100%;
+  height: 100vh;
+
+  display: none;
+}
+
+/* TITEL */
 
 h1 {
 
   margin-bottom: 40px;
 }
 
-/* GPS Status */
+/* GPS STATUS */
 
 #gpsStatus {
 
   width: 90%;
 
-  max-width: 400px;
+  max-width: 420px;
 
   background: white;
 
   padding: 20px;
 
-  border-radius: 15px;
+  border-radius: 16px;
 
   text-align: center;
 
   box-shadow:
     0 0 10px rgba(0,0,0,0.2);
 
-  margin-bottom: 30px;
+  margin-bottom: 20px;
 
   font-size: 18px;
+
+  line-height: 1.6;
 }
 
-/* Buttons */
+/* SIGNAL */
+
+#signal {
+
+  font-size: 26px;
+
+  margin-bottom: 10px;
+}
+
+/* BUTTONS */
 
 button {
 
   width: 90%;
 
-  max-width: 400px;
+  max-width: 420px;
 
   padding: 16px;
 
@@ -123,7 +134,14 @@ button {
   font-size: 18px;
 }
 
-/* Zurück Button */
+/* DISABLED */
+
+button:disabled {
+
+  background: #999;
+}
+
+/* ZURÜCK */
 
 #backButton {
 
@@ -144,23 +162,42 @@ button {
   display: none;
 }
 
+/* GPS INFO */
+
+#gpsInfo {
+
+  margin-top: 15px;
+
+  font-size: 16px;
+}
+
 </style>
 
 </head>
 
 <body>
 
-<!-- STARTSEITE -->
+<!-- START -->
 
 <div id="home">
 
   <h1>
-    GPS App V1
+    GPS App V2
   </h1>
 
   <div id="gpsStatus">
 
-    Prüfe GPS...
+    <div id="signal">
+
+      📡
+
+    </div>
+
+    GPS wird gesucht...
+
+    <div id="gpsInfo">
+
+    </div>
 
   </div>
 
@@ -194,31 +231,56 @@ button {
 <script>
 
 // ========================================
-// Variablen
+// VARIABLEN
 // ========================================
 
 let currentLat = null;
 let currentLng = null;
 
+let accuracy = null;
+
 let map;
 let marker;
 
+let firstFix = false;
+
 // ========================================
-// GPS prüfen
+// GPS STATUS
+// ========================================
+
+const gpsStatus =
+  document.getElementById(
+    "gpsStatus"
+  );
+
+const gpsInfo =
+  document.getElementById(
+    "gpsInfo"
+  );
+
+const signal =
+  document.getElementById(
+    "signal"
+  );
+
+// ========================================
+// GPS NICHT VERFÜGBAR
 // ========================================
 
 if (!navigator.geolocation) {
 
-  document.getElementById(
-    "gpsStatus"
-  ).innerHTML =
+  gpsStatus.innerHTML =
 
     "❌ GPS nicht unterstützt";
 }
 
+// ========================================
+// GPS START
+// ========================================
+
 else {
 
-  navigator.geolocation.getCurrentPosition(
+  navigator.geolocation.watchPosition(
 
     (position) => {
 
@@ -228,54 +290,141 @@ else {
       currentLng =
         position.coords.longitude;
 
-      const accuracy =
+      accuracy =
         Math.round(
           position.coords.accuracy
         );
 
-      document.getElementById(
-        "gpsStatus"
-      ).innerHTML = `
+      // ====================================
+      // SIGNAL QUALITÄT
+      // ====================================
 
-        ✅ GPS verfügbar
+      let quality = "";
+      let color = "";
 
-        <br><br>
+      if (accuracy <= 10) {
 
-        Breitengrad:
-        ${currentLat.toFixed(6)}
+        quality =
+          "Sehr gut";
 
-        <br><br>
+        color =
+          "green";
 
-        Längengrad:
-        ${currentLng.toFixed(6)}
+        signal.innerHTML =
+          "🟢";
+      }
 
-        <br><br>
+      else if (accuracy <= 30) {
 
-        Genauigkeit:
-        ${accuracy} m
+        quality =
+          "Gut";
+
+        color =
+          "orange";
+
+        signal.innerHTML =
+          "🟠";
+      }
+
+      else {
+
+        quality =
+          "Schlecht";
+
+        color =
+          "red";
+
+        signal.innerHTML =
+          "🔴";
+      }
+
+      // ====================================
+      // STATUS
+      // ====================================
+
+      gpsStatus.innerHTML = `
+
+        <div id="signal">
+
+          ${signal.innerHTML}
+
+        </div>
+
+        <b style="
+          color:${color};
+        ">
+
+          GPS ${quality}
+
+        </b>
+
+        <div id="gpsInfo">
+
+          <br>
+
+          Breitengrad:
+          ${currentLat.toFixed(6)}
+
+          <br><br>
+
+          Längengrad:
+          ${currentLng.toFixed(6)}
+
+          <br><br>
+
+          Genauigkeit:
+          ${accuracy} m
+
+        </div>
       `;
 
-      // Button aktivieren
+      // ====================================
+      // BUTTON AKTIV
+      // ====================================
 
       document.getElementById(
         "mapButton"
       ).disabled = false;
+
+      // ====================================
+      // ERSTES GPS FIX
+      // ====================================
+
+      if (!firstFix) {
+
+        firstFix = true;
+
+        console.log(
+          "GPS bereit"
+        );
+      }
+
+      // ====================================
+      // KARTE LIVE AKTUALISIEREN
+      // ====================================
+
+      if (map && marker) {
+
+        marker.setLatLng(
+          [currentLat, currentLng]
+        );
+      }
     },
 
     (error) => {
 
-      document.getElementById(
-        "gpsStatus"
-      ).innerHTML =
+      gpsStatus.innerHTML =
 
         "❌ GPS Fehler";
+
+      console.error(error);
     },
 
     {
 
       enableHighAccuracy: true,
 
-      timeout: 10000,
+      timeout: 30000,
 
       maximumAge: 0
     }
@@ -283,7 +432,7 @@ else {
 }
 
 // ========================================
-// Karte anzeigen
+// KARTE ZEIGEN
 // ========================================
 
 window.showMap =
@@ -301,7 +450,9 @@ function () {
     "backButton"
   ).style.display = "block";
 
-  // Karte nur einmal erzeugen
+  // ====================================
+  // KARTE ERZEUGEN
+  // ====================================
 
   if (!map) {
 
@@ -309,7 +460,7 @@ function () {
       L.map("map")
       .setView(
         [currentLat, currentLng],
-        17
+        18
       );
 
     L.tileLayer(
@@ -336,11 +487,15 @@ function () {
     ).openPopup();
   }
 
+  // ====================================
+  // POSITION AKTUALISIEREN
+  // ====================================
+
   else {
 
     map.setView(
       [currentLat, currentLng],
-      17
+      18
     );
 
     marker.setLatLng(
@@ -348,17 +503,19 @@ function () {
     );
   }
 
-  // Leaflet Resize Fix
+  // ====================================
+  // LEAFLET FIX
+  // ====================================
 
   setTimeout(() => {
 
     map.invalidateSize();
 
-  }, 200);
+  }, 300);
 };
 
 // ========================================
-// Zurück
+// ZURÜCK
 // ========================================
 
 window.showHome =
