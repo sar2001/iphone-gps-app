@@ -224,16 +224,23 @@ function buildGeoJSON() {
 }
 
 function saveToFirebase() {
-  if (routePoints.length < 2) return;
+  console.log("saveToFirebase called, points:", routePoints.length);
+  if (routePoints.length < 2) {
+    console.log("Zu wenig Punkte");
+    return;
+  }
   const data = buildGeoJSON();
+  console.log("GeoJSON:", JSON.stringify(data).slice(0, 100) + "...");
   db.collection("routes").add(data)
-    .then(() => {
+    .then((docRef) => {
+      console.log("Gespeichert mit ID:", docRef.id);
       var info = document.getElementById("info");
-      info.innerHTML += "<br><small>✓ Gespeichert in Firebase</small>";
+      info.innerHTML += "<br><small>✓ Gespeichert (ID: " + docRef.id + ")</small>";
     })
     .catch((err) => {
+      console.error("Firebase Fehler:", err);
       var info = document.getElementById("info");
-      info.innerHTML += "<br><small>✗ Fehler: " + err.message + "</small>";
+      info.innerHTML += "<br><small>✗ " + err.message + "</small>";
     });
 }
 
@@ -265,9 +272,13 @@ const firebaseConfig = {
   measurementId: "G-XSDK7SVJ0L"
 };
 
+console.log("Firebase init...");
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-firebase.auth().signInAnonymously().catch(e => console.warn("Auth:", e.message));
+console.log("Firestore DB:", !!db);
+firebase.auth().signInAnonymously()
+  .then((cred) => console.log("Auth OK, UID:", cred.user.uid))
+  .catch(e => console.error("Auth Fehler:", e));
 
 // SERVICE WORKER
 
