@@ -74,21 +74,12 @@ button {
 let map;
 let marker;
 let watchId;
+let usingHighAccuracy = true;
 
-function startGPS() {
-
-  if (!navigator.geolocation) {
-    alert("Kein GPS");
-    return;
-  }
-
-  map = L.map('map').setView([0,0], 2);
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap'
-  }).addTo(map);
-
-  marker = L.marker([0,0]).addTo(map);
+function startWatching(highAccuracy) {
+  usingHighAccuracy = highAccuracy;
+  var mode = highAccuracy ? "GPS" : "Mobilfunk/WLAN";
+  document.getElementById("info").innerHTML = "Suche Position (" + mode + ")...";
 
   watchId = navigator.geolocation.watchPosition(
 
@@ -97,9 +88,11 @@ function startGPS() {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
       const acc = pos.coords.accuracy;
+      var mode = usingHighAccuracy ? "GPS" : "Mobilfunk/WLAN";
 
       document.getElementById("info").innerHTML =
-        "Lat: " + lat.toFixed(6) +
+        "Modus: " + mode +
+        "<br>Lat: " + lat.toFixed(6) +
         "<br>Lng: " + lng.toFixed(6) +
         "<br>Genauigkeit: " + Math.round(acc) + "m";
 
@@ -109,14 +102,37 @@ function startGPS() {
     },
 
     (err) => {
-      alert("GPS Fehler");
+      if (usingHighAccuracy) {
+        document.getElementById("info").innerHTML = "Kein GPS-Signal – versuche Mobilfunk/WLAN...";
+        navigator.geolocation.clearWatch(watchId);
+        startWatching(false);
+      } else {
+        document.getElementById("info").innerHTML = "Keine Position gefunden.";
+      }
     },
 
     {
-      enableHighAccuracy: true,
-      maximumAge: 0
+      enableHighAccuracy: highAccuracy,
+      maximumAge: highAccuracy ? 0 : 30000,
+      timeout: 10000
     }
   );
+}
+
+function startGPS() {
+
+  if (!navigator.geolocation) {
+    alert("Geolocation wird nicht unterstützt");
+    return;
+  }
+
+  map = L.map('map').setView([0,0], 2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+  marker = L.marker([0,0]).addTo(map);
+
+  startWatching(true);
 }
 
 // SERVICE WORKER
