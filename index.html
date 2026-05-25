@@ -238,14 +238,17 @@ function saveToFirebase() {
   try {
     const data = buildGeoJSON();
     fbSaveGeoJSON(data)
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
+      .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+      .then(function(res) {
         clearTimeout(timeout);
-        if (d.name) {
-          var id = d.name.split("/").pop();
+        if (res.ok) {
+          var id = res.data.name.split("/").pop();
           firebaseStatus = "✓ Gespeichert (" + id.slice(0,6) + ")";
         } else {
-          firebaseStatus = "✗ " + (d.error || d.message || "Unbekannt");
+          var msg = res.data.error && res.data.error.message ? res.data.error.message :
+                    res.data.error ? (typeof res.data.error === "string" ? res.data.error : JSON.stringify(res.data.error)) :
+                    JSON.stringify(res.data);
+          firebaseStatus = "✗ " + msg;
         }
       })
       .catch(function(err) {
