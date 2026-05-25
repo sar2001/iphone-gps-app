@@ -93,6 +93,8 @@ body, html {
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <script>
 
@@ -202,6 +204,37 @@ function startGPS() {
   }
 }
 
+function buildGeoJSON() {
+  return {
+    type: "FeatureCollection",
+    features: [{
+      type: "Feature",
+      properties: {
+        timestamp: new Date().toISOString(),
+        totalDistance: totalDistance
+      },
+      geometry: {
+        type: "LineString",
+        coordinates: routePoints.map(p => [p[1], p[0]])
+      }
+    }]
+  };
+}
+
+function saveToFirebase() {
+  if (routePoints.length < 2) return;
+  const data = buildGeoJSON();
+  db.collection("routes").add(data)
+    .then(() => {
+      var info = document.getElementById("info");
+      info.innerHTML += "<br><small>✓ Gespeichert in Firebase</small>";
+    })
+    .catch((err) => {
+      var info = document.getElementById("info");
+      info.innerHTML += "<br><small>✗ Fehler: " + err.message + "</small>";
+    });
+}
+
 function toggleRecording() {
   isRecording = !isRecording;
   var btn = document.getElementById("btnRecord");
@@ -214,8 +247,24 @@ function toggleRecording() {
   } else {
     btn.innerHTML = "Aufzeichnung";
     btn.className = "";
+    saveToFirebase();
   }
 }
+
+// FIREBASE
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBg_-8LeU72a-mj_zNyezr4zlXtJoHxi9c",
+  authDomain: "ras-gps-route.firebaseapp.com",
+  projectId: "ras-gps-route",
+  storageBucket: "ras-gps-route.firebasestorage.app",
+  messagingSenderId: "200005558812",
+  appId: "1:200005558812:web:a6a89a131a35aad57ab5d9",
+  measurementId: "G-XSDK7SVJ0L"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 // SERVICE WORKER
 
