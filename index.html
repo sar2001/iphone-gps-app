@@ -97,6 +97,25 @@ body, html {
   display: none;
 }
 
+#btnWaypoint {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 60px;
+  border: none;
+  background: #af52de;
+  color: white;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: bold;
+  z-index: 9999;
+  cursor: pointer;
+  display: none;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
 </style>
 
 </head>
@@ -108,6 +127,7 @@ body, html {
 <button id="btnGps" onclick="startGPS()">Start GPS</button>
 <button id="btnRecord" onclick="toggleRecording()">Aufzeichnung</button>
 <button id="btnRoutes" onclick="loadRoutes()">Routen</button>
+<button id="btnWaypoint" onclick="addWaypoint()">📍</button>
 
 <div id="map"></div>
 
@@ -129,6 +149,8 @@ let firebaseStatus = "";
 let viewMode = "gps";
 let cachedRoutes = [];
 let savedRouteLines = [];
+let waypoints = [];
+let waypointMarkers = [];
 
 function calcDistance(lat1, lng1, lat2, lng2) {
   const R = 6371000;
@@ -150,6 +172,7 @@ function updateInfo(lat, lng, acc) {
   if (isRecording) {
     html += "<br><b>Aufzeichnung läuft</b>" +
       "<br>Strecke: " + (totalDistance / 1000).toFixed(2) + " km";
+    if (waypoints.length > 0) html += "<br>📍 " + waypoints.length + " Haltepunkte";
   }
   if (firebaseStatus) {
     html += "<br><small>" + firebaseStatus + "</small>";
@@ -238,20 +261,23 @@ function startGPS() {
 }
 
 function buildGeoJSON() {
-  return {
-    type: "FeatureCollection",
-    features: [{
-      type: "Feature",
-      properties: {
-        timestamp: new Date().toISOString(),
-        totalDistance: totalDistance
-      },
-      geometry: {
-        type: "LineString",
-        coordinates: routePoints.map(p => [p[1], p[0]])
-      }
-    }]
+  var feature = {
+    type: "Feature",
+    properties: {
+      timestamp: new Date().toISOString(),
+      totalDistance: totalDistance
+    },
+    geometry: {
+      type: "LineString",
+      coordinates: routePoints.map(function(p) { return [p[1], p[0]]; })
+    }
   };
+  if (waypoints.length > 0) {
+    feature.properties.waypoints = waypoints.map(function(w) {
+      return { lat: w.lat, lng: w.lng, label: w.label };
+    });
+  }
+  return { type: "FeatureCollection", features: [feature] };
 }
 
 function saveToFirebase(name) {
@@ -292,18 +318,40 @@ function saveToFirebase(name) {
   }
 }
 
+function addWaypoint() {
+  if (!marker || !marker.getLatLng()) return;
+  var pos = marker.getLatLng();
+  var label = "HP " + (waypoints.length + 1);
+  waypoints.push({ lat: pos.lat, lng: pos.lng, label: label });
+  var icon = L.divIcon({
+    className: "",
+    html: "<div style='background:#af52de;color:#fff;width:28px;height:28px;border-radius:14px;text-align:center;line-height:28px;font-size:12px;font-weight:bold;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.3)'>" + waypoints.length + "</div>",
+    iconSize: [28, 28],
+    iconAnchor: [14, 14]
+  });
+  var m = L.marker([pos.lat, pos.lng], { icon: icon }).addTo(map);
+  m.bindPopup(label);
+  waypointMarkers.push(m);
+}
+
 function toggleRecording() {
   isRecording = !isRecording;
   var btn = document.getElementById("btnRecord");
+  var btnWp = document.getElementById("btnWaypoint");
   if (isRecording) {
     routePoints = [];
     totalDistance = 0;
+    waypoints = [];
+    for (var i = 0; i < waypointMarkers.length; i++) map.removeLayer(waypointMarkers[i]);
+    waypointMarkers = [];
     routeLine = L.polyline([], { color: "red", weight: 4 }).addTo(map);
     btn.innerHTML = "● Stopp";
     btn.className = "active";
+    btnWp.style.display = "block";
   } else {
     btn.innerHTML = "Aufzeichnung";
     btn.className = "";
+    btnWp.style.display = "none";
     var routeName = prompt("Name der Route:", "Route " + new Date().toLocaleDateString("de-DE"));
     if (routeName) {
       saveToFirebase(routeName);
@@ -353,6 +401,10 @@ function clearSavedRoutes() {
     map.removeLayer(savedRouteLines[i]);
   }
   savedRouteLines = [];
+  for (var i = 0; i < waypointMarkers.length; i++) {
+    map.removeLayer(waypointMarkers[i]);
+  }
+  waypointMarkers = [];
 }
 
 function showRoute(doc) {
