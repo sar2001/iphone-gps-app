@@ -272,13 +272,27 @@ const firebaseConfig = {
   measurementId: "G-XSDK7SVJ0L"
 };
 
-console.log("Firebase init...");
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-console.log("Firestore DB:", !!db);
+
 firebase.auth().signInAnonymously()
-  .then((cred) => console.log("Auth OK, UID:", cred.user.uid))
-  .catch(e => console.error("Auth Fehler:", e));
+  .then((cred) => {
+    console.log("Auth OK, UID:", cred.user.uid);
+    document.getElementById("info").innerHTML += "<br><small>Firebase verbunden</small>";
+    db.collection("routes").add({
+      type: "test",
+      timestamp: new Date().toISOString()
+    }).then((ref) => {
+      console.log("Test-Doc geschrieben:", ref.id);
+    }).catch((err) => {
+      console.error("Test-Doc Fehler:", err);
+      document.getElementById("info").innerHTML += "<br><small>Firebase Fehler: " + err.message + "</small>";
+    });
+  })
+  .catch(e => {
+    console.error("Auth Fehler:", e);
+    document.getElementById("info").innerHTML += "<br><small>Auth Fehler</small>";
+  });
 
 // SERVICE WORKER
 
