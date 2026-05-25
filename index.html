@@ -316,7 +316,7 @@ function fbSaveGeoJSON(data) {
     fields: {
       type: { stringValue: data.type },
       timestamp: { stringValue: new Date().toISOString() },
-      totalDistance: { numberValue: data.features[0].properties.totalDistance },
+      totalDistance: { doubleValue: data.features[0].properties.totalDistance },
       geoJSON: { stringValue: JSON.stringify(data) }
     }
   };
