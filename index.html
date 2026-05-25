@@ -94,9 +94,7 @@ body, html {
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<!-- Firebase via REST API (kein SDK nötig) -->
 
 <script>
 
@@ -229,19 +227,37 @@ function buildGeoJSON() {
 
 function saveToFirebase() {
   if (routePoints.length < 2) {
-    firebaseStatus = "✗ Zu wenig Punkte";
+    firebaseStatus = "✗ Zu wenig Punkte (" + routePoints.length + ")";
     return;
   }
-  firebaseStatus = "Speichere...";
-  const data = buildGeoJSON();
-  db.collection("routes").add(data)
-    .then((docRef) => {
-      firebaseStatus = "✓ Gespeichert (" + docRef.id.slice(0,6) + ")";
-    })
-    .catch((err) => {
-      firebaseStatus = "✗ " + err.message;
-      console.error("Firebase:", err);
-    });
+  firebaseStatus = "Speichere... (" + routePoints.length + " Punkte)";
+  var timeout = setTimeout(function() {
+    if (firebaseStatus === "Speichere... (" + routePoints.length + " Punkte)")
+      firebaseStatus = "⏳ Timeout";
+  }, 10000);
+  try {
+    const data = buildGeoJSON();
+    fbSaveGeoJSON(data)
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        clearTimeout(timeout);
+        if (d.name) {
+          var id = d.name.split("/").pop();
+          firebaseStatus = "✓ Gespeichert (" + id.slice(0,6) + ")";
+        } else {
+          firebaseStatus = "✗ " + (d.error || d.message || "Unbekannt");
+        }
+      })
+      .catch(function(err) {
+        clearTimeout(timeout);
+        firebaseStatus = "✗ " + err.message;
+        console.error("Firebase:", err);
+      });
+  } catch (e) {
+    clearTimeout(timeout);
+    firebaseStatus = "✗ Crash: " + e.message;
+    console.error("saveToFirebase crash:", e);
+  }
 }
 
 function toggleRecording() {
@@ -260,29 +276,55 @@ function toggleRecording() {
   }
 }
 
-// FIREBASE
+// FIREBASE – REST API (ohne SDK)
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBg_-8LeU72a-mj_zNyezr4zlXtJoHxi9c",
-  authDomain: "ras-gps-route.firebaseapp.com",
-  projectId: "ras-gps-route",
-  storageBucket: "ras-gps-route.firebasestorage.app",
-  messagingSenderId: "200005558812",
-  appId: "1:200005558812:web:a6a89a131a35aad57ab5d9",
-  measurementId: "G-XSDK7SVJ0L"
-};
+const API_KEY = "AIzaSyBg_-8LeU72a-mj_zNyezr4zlXtJoHxi9c";
+const PROJECT_ID = "ras-gps-route";
+let fbToken = null;
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-firebase.auth().signInAnonymously()
-  .then(() => {
-    firebaseStatus = "Firebase verbunden";
+function fbSignIn() {
+  fetch("https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" + API_KEY, {
+    method: "POST",
+    body: JSON.stringify({ returnSecureToken: true })
   })
-  .catch(e => {
-    firebaseStatus = "Auth Fehler";
-    console.error("Auth:", e);
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.idToken) {
+      fbToken = d.idToken;
+      firebaseStatus = "Firebase verbunden";
+    } else {
+      firebaseStatus = "Auth Fehler";
+    }
+  })
+  .catch(function(e) {
+    firebaseStatus = "Netzwerk Fehler";
+    console.error(e);
   });
+}
+
+function fbSaveGeoJSON(data) {
+  if (!fbToken) {
+    firebaseStatus = "✗ Nicht angemeldet";
+    return Promise.reject("No token");
+  }
+  var url = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID +
+    "/databases/(default)/documents/routes";
+  var body = {
+    fields: {
+      type: { stringValue: data.type },
+      timestamp: { stringValue: new Date().toISOString() },
+      totalDistance: { numberValue: data.features[0].properties.totalDistance },
+      geoJSON: { stringValue: JSON.stringify(data) }
+    }
+  };
+  return fetch(url, {
+    method: "POST",
+    headers: { "Authorization": "Bearer " + fbToken, "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+}
+
+fbSignIn();
 
 // SERVICE WORKER
 
