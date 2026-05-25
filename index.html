@@ -232,7 +232,7 @@ function saveToFirebase(name) {
   }
   firebaseStatus = "Speichere... (" + routePoints.length + " Punkte)";
   var timeout = setTimeout(function() {
-    if (firebaseStatus === "Speichere... (" + routePoints.length + " Punkte)")
+    if (firebaseStatus.indexOf("Speichere") === 0)
       firebaseStatus = "⏳ Timeout";
   }, 10000);
   try {
@@ -245,12 +245,6 @@ function saveToFirebase(name) {
           var id = res.data.name.split("/").pop();
           firebaseStatus = "✓ " + name + " gespeichert (" + id.slice(0,6) + ")";
         } else {
-          var msg = res.data.error && res.data.error.message ? res.data.error.message :
-                    res.data.error ? (typeof res.data.error === "string" ? res.data.error : JSON.stringify(res.data.error)) :
-                    JSON.stringify(res.data);
-          firebaseStatus = "✗ " + msg;
-        }
-      })
           var msg = res.data.error && res.data.error.message ? res.data.error.message :
                     res.data.error ? (typeof res.data.error === "string" ? res.data.error : JSON.stringify(res.data.error)) :
                     JSON.stringify(res.data);
