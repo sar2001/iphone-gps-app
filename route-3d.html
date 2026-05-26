@@ -2,50 +2,84 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Route 3D</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Route 3D – Aufzeichnung</title>
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css">
 <style>
-body, html { margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100%; }
+body, html { margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100%; overflow: hidden; }
 #map { position: absolute; top: 0; left: 280px; right: 0; bottom: 0; }
 #sidebar {
   position: absolute; top: 0; left: 0; width: 280px; bottom: 0;
   background: #1c1c1e; overflow-y: auto; padding: 12px;
   border-right: 1px solid #333; box-sizing: border-box; color: #fff;
+  z-index: 1;
 }
-#sidebar h2 { margin: 0 0 12px 0; font-size: 18px; }
-#authStatus { font-size: 12px; color: #888; margin-bottom: 12px; }
-#btn3d {
-  position: absolute; bottom: 20px; left: 300px; z-index: 9999;
-  padding: 8px 16px; border: none; border-radius: 8px;
-  background: #ff3b30; color: #fff; font-size: 14px; cursor: pointer;
+#sidebar h2 { margin: 0 0 8px 0; font-size: 18px; }
+#authStatus, #gpsInfo { font-size: 12px; color: #888; margin-bottom: 6px; }
+#gpsInfo { margin-bottom: 10px; }
+.btn-overlay {
+  position: absolute; bottom: 20px; z-index: 9999;
+  padding: 10px 0; border: none; border-radius: 10px;
+  font-size: 14px; cursor: pointer; color: #fff;
+  text-align: center; font-weight: bold;
 }
+#btnGps { left: 300px; width: 120px; background: #007aff; }
+#btnGps.active { background: #ff9500; }
+#btnRecord { left: 430px; width: 120px; background: #34c759; display: none; }
+#btnRecord.active { background: #ff3b30; }
+#btn3d { left: 560px; width: 80px; background: #ff3b30; font-size: 12px; padding: 10px 0; }
+#btnWaypoint {
+  position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
+  width: 56px; height: 56px; border: none; background: #af52de;
+  color: #fff; border-radius: 28px; font-size: 22px; z-index: 9999;
+  cursor: pointer; display: none; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+.recording-info {
+  background: #2c2c2e; border-radius: 8px; padding: 10px; margin-bottom: 10px;
+  font-size: 13px; display: none;
+}
+.recording-info .label { color: #888; }
+.recording-info .value { float: right; font-weight: bold; }
 .route-item {
-  padding: 10px; margin-bottom: 8px; background: #2c2c2e; border-radius: 8px;
-  cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s;
+  padding: 10px; margin-bottom: 6px; background: #2c2c2e; border-radius: 8px;
+  cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s; font-size: 13px;
 }
 .route-item.active { border-color: #007aff; }
-.route-item .name { font-weight: bold; font-size: 14px; }
-.route-item .meta { font-size: 12px; color: #888; margin-top: 2px; }
+.route-item .name { font-weight: bold; }
+.route-item .meta { font-size: 11px; color: #888; margin-top: 2px; }
 .route-item .color-dot {
-  display: inline-block; width: 12px; height: 12px; border-radius: 6px;
+  display: inline-block; width: 10px; height: 10px; border-radius: 5px;
   margin-right: 6px; vertical-align: middle;
 }
-@media (max-width: 600px) {
-  #sidebar { width: 100%; height: 200px; bottom: auto; border-right: none; border-bottom: 1px solid #333; }
-  #map { left: 0; top: 200px; }
-  #btn3d { left: 20px; bottom: 220px; }
+@media (max-width: 700px) {
+  #sidebar { width: 100%; height: 180px; bottom: auto; border-right: none; border-bottom: 1px solid #333; }
+  #map { left: 0; top: 180px; }
+  .btn-overlay { bottom: 10px; }
+  #btnGps { left: 10px; width: 100px; }
+  #btnRecord { left: 118px; width: 100px; }
+  #btn3d { left: 226px; width: 70px; font-size: 11px; }
+  #btnWaypoint { bottom: 72px; width: 48px; height: 48px; font-size: 18px; }
 }
 </style>
 </head>
 <body>
 <div id="sidebar">
-  <h2>🏔 Route 3D</h2>
+  <h2>Route 3D</h2>
   <div id="authStatus">Verbinde...</div>
+  <div id="gpsInfo">GPS aus</div>
+  <div class="recording-info" id="recordingInfo">
+    <div><span class="label">Strecke</span><span class="value" id="recDist">0,00 km</span></div>
+    <div><span class="label">Punkte</span><span class="value" id="recPoints">0</span></div>
+    <div><span class="label">Haltepunkte</span><span class="value" id="recWps">0</span></div>
+  </div>
   <div id="routeList"></div>
 </div>
 <div id="map"></div>
-<button id="btn3d" onclick="toggle3D()">3D: AN</button>
+<button class="btn-overlay" id="btnGps" onclick="toggleGPS()">GPS Start</button>
+<button class="btn-overlay" id="btnRecord" onclick="toggleRecording()">Aufzeichnung</button>
+<button class="btn-overlay" id="btn3d" onclick="toggle3D()">3D: AN</button>
+<button id="btnWaypoint" onclick="addWaypoint()">📍</button>
+<input type="file" accept="image/*" capture="environment" id="cameraInput" style="display:none">
 
 <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
 <script>
@@ -54,56 +88,193 @@ var map = new maplibregl.Map({
   style: {
     version: 8,
     sources: {
-      osm: {
-        type: 'raster',
-        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-        tileSize: 256,
-        attribution: '&copy; OpenStreetMap'
-      },
-      terrain: {
-        type: 'raster-dem',
-        tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-        tileSize: 256,
-        maxzoom: 15,
-        encoding: 'terrarium'
-      }
+      osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '&copy; OpenStreetMap' },
+      terrain: { type: 'raster-dem', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 15, encoding: 'terrarium' }
     },
-    layers: [{
-      id: 'osm',
-      type: 'raster',
-      source: 'osm'
-    }]
+    layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
   },
-  center: [10.4515, 51.1657],
-  zoom: 6,
-  pitch: 60,
-  bearing: 0,
-  antialias: true
+  center: [10.4515, 51.1657], zoom: 6, pitch: 60, bearing: 0, antialias: true
 });
-
 map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
 
 map.on('load', function() {
   map.setTerrain({ source: 'terrain', exaggeration: 1.5 });
+  map.addSource('gps-marker', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({ id: 'gps-marker', type: 'circle', source: 'gps-marker', paint: { 'circle-color': '#007aff', 'circle-radius': 10, 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } });
+  map.addSource('recording-line', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] } } });
+  map.addLayer({ id: 'recording-line', type: 'line', source: 'recording-line', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#ff3b30', 'line-width': 4, 'line-opacity': 0.8 } });
+  map.addSource('recording-wps', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({ id: 'recording-wps', type: 'circle', source: 'recording-wps', paint: { 'circle-color': '#af52de', 'circle-radius': 8, 'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
 });
 
 var is3D = true;
-
 function toggle3D() {
   is3D = !is3D;
-  if (is3D) {
-    map.setTerrain({ source: 'terrain', exaggeration: 1.5 });
-    map.setPitch(60);
-    document.getElementById("btn3d").textContent = "3D: AN";
-    document.getElementById("btn3d").style.background = "#ff3b30";
+  if (is3D) { map.setTerrain({ source: 'terrain', exaggeration: 1.5 }); map.setPitch(60); document.getElementById("btn3d").textContent = "3D: AN"; document.getElementById("btn3d").style.background = "#ff3b30"; }
+  else { map.setTerrain(null); map.setPitch(0); document.getElementById("btn3d").textContent = "3D: AUS"; document.getElementById("btn3d").style.background = "#555"; }
+}
+
+// ---- GPS & RECORDING ----
+var watchId = null;
+var usingHighAccuracy = true;
+var isRecording = false;
+var gpsActive = false;
+var routePoints = [];
+var totalDistance = 0;
+var waypoints = [];
+var wpCount = 0;
+var recordingLineCoords = [];
+
+function calcDistance(lat1, lng1, lat2, lng2) {
+  var R = 6371000;
+  var dLat = (lat2 - lat1) * Math.PI / 180;
+  var dLng = (lng2 - lng1) * Math.PI / 180;
+  var a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function updateGPSInfo(lat, lng, acc) {
+  var mode = usingHighAccuracy ? "GPS" : "Netzwerk";
+  var html = "Modus: " + mode + " | Lat: " + lat.toFixed(6) + " | Lng: " + lng.toFixed(6) + " | ±" + Math.round(acc) + "m";
+  if (isRecording) html += " | Aufzeichnung läuft";
+  document.getElementById("gpsInfo").textContent = html;
+}
+
+function toggleGPS() {
+  if (gpsActive) {
+    if (watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+    gpsActive = false;
+    document.getElementById("btnGps").textContent = "GPS Start";
+    document.getElementById("btnGps").className = "btn-overlay";
+    document.getElementById("btnRecord").style.display = "none";
+    document.getElementById("gpsInfo").textContent = "GPS aus";
+    map.getSource('gps-marker').setData({ type: 'FeatureCollection', features: [] });
+    return;
+  }
+  if (!navigator.geolocation) { alert("Geolocation nicht unterstützt"); return; }
+  usingHighAccuracy = true;
+  document.getElementById("gpsInfo").textContent = "Suche Position (GPS)...";
+  startWatching(true);
+}
+
+function startWatching(highAccuracy) {
+  usingHighAccuracy = highAccuracy;
+  watchId = navigator.geolocation.watchPosition(
+    function(pos) {
+      var lat = pos.coords.latitude;
+      var lng = pos.coords.longitude;
+      var acc = pos.coords.accuracy;
+      if (!gpsActive) {
+        gpsActive = true;
+        document.getElementById("btnGps").textContent = "GPS Stopp";
+        document.getElementById("btnGps").className = "btn-overlay active";
+        document.getElementById("btnRecord").style.display = "block";
+      }
+      map.getSource('gps-marker').setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] } }] });
+      map.setCenter([lng, lat]);
+      if (isRecording) {
+        var last = routePoints.length > 0 ? routePoints[routePoints.length - 1] : null;
+        if (last) totalDistance += calcDistance(last[0], last[1], lat, lng);
+        routePoints.push([lat, lng]);
+        recordingLineCoords.push([lng, lat]);
+        map.getSource('recording-line').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: recordingLineCoords } });
+        updateRecordingUI();
+      }
+      updateGPSInfo(lat, lng, acc);
+    },
+    function(err) {
+      var info = document.getElementById("gpsInfo");
+      if (usingHighAccuracy) {
+        info.textContent = "GPS: " + err.message + " – versuche Netzwerk...";
+        navigator.geolocation.clearWatch(watchId);
+        startWatching(false);
+      } else {
+        info.textContent = "Fehler: " + err.message;
+      }
+    },
+    { enableHighAccuracy: highAccuracy, maximumAge: highAccuracy ? 0 : 30000, timeout: 5000 }
+  );
+}
+
+function toggleRecording() {
+  isRecording = !isRecording;
+  var btn = document.getElementById("btnRecord");
+  var btnWp = document.getElementById("btnWaypoint");
+  var info = document.getElementById("recordingInfo");
+  if (isRecording) {
+    routePoints = [];
+    totalDistance = 0;
+    waypoints = [];
+    wpCount = 0;
+    recordingLineCoords = [];
+    map.getSource('recording-line').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] } });
+    map.getSource('recording-wps').setData({ type: 'FeatureCollection', features: [] });
+    btn.innerHTML = "● Stopp";
+    btn.className = "btn-overlay active";
+    btnWp.style.display = "block";
+    info.style.display = "block";
+    updateRecordingUI();
+    map.flyTo({ zoom: 16, pitch: 60 });
   } else {
-    map.setTerrain(null);
-    map.setPitch(0);
-    document.getElementById("btn3d").textContent = "3D: AUS";
-    document.getElementById("btn3d").style.background = "#555";
+    btn.innerHTML = "Aufzeichnung";
+    btn.className = "btn-overlay";
+    btnWp.style.display = "none";
+    info.style.display = "none";
+    var routeName = prompt("Name der Route:", "Route 3D " + new Date().toLocaleDateString("de-DE"));
+    if (routeName) saveToFirebase(routeName);
   }
 }
 
+function updateRecordingUI() {
+  document.getElementById("recDist").textContent = (totalDistance / 1000).toFixed(2) + " km";
+  document.getElementById("recPoints").textContent = routePoints.length;
+  document.getElementById("recWps").textContent = wpCount;
+}
+
+var pendingWaypoint = null;
+var cameraInput = document.getElementById("cameraInput");
+cameraInput.addEventListener("change", function(e) {
+  var file = e.target.files[0];
+  if (!file || !pendingWaypoint) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var img = new Image();
+    img.onload = function() {
+      var max = 400;
+      var w = img.width, h = img.height;
+      if (w > max || h > max) { if (w > h) { h = h * max / w; w = max; } else { w = w * max / h; h = max; } }
+      var c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      var ctx = c.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      pendingWaypoint.photo = c.toDataURL("image/jpeg", 0.7);
+      pendingWaypoint = null;
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  cameraInput.value = "";
+});
+
+function addWaypoint() {
+  if (routePoints.length === 0) return;
+  var last = routePoints[routePoints.length - 1];
+  var defaultLabel = "HP " + (waypoints.length + 1);
+  var label = prompt("Name des Haltepunkts:", defaultLabel);
+  if (!label) label = defaultLabel;
+  var wp = { lat: last[0], lng: last[1], label: label };
+  waypoints.push(wp);
+  wpCount++;
+  var features = [];
+  for (var i = 0; i < waypoints.length; i++) {
+    features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [waypoints[i].lng, waypoints[i].lat] }, properties: { label: waypoints[i].label, idx: i + 1 } });
+  }
+  map.getSource('recording-wps').setData({ type: 'FeatureCollection', features: features });
+  updateRecordingUI();
+  if (confirm("Foto machen?")) { pendingWaypoint = wp; cameraInput.click(); }
+}
+
+// ---- FIREBASE ----
 const API_KEY = "AIzaSyBg_-8LeU72a-mj_zNyezr4zlXtJoHxi9c";
 const PROJECT_ID = "ras-gps-route";
 var fbToken = null;
@@ -113,39 +284,51 @@ var colors = ["#ff3b30", "#34c759", "#007aff", "#ff9500", "#af52de", "#00c7be", 
 
 function fbSignIn() {
   fetch("https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" + API_KEY, {
-    method: "POST",
-    body: JSON.stringify({ returnSecureToken: true })
+    method: "POST", body: JSON.stringify({ returnSecureToken: true })
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    if (d.idToken) {
-      fbToken = d.idToken;
-      document.getElementById("authStatus").textContent = "✓ Verbunden";
-      loadRoutes();
-    } else {
-      document.getElementById("authStatus").textContent = "✗ Auth Fehler";
-    }
+    if (d.idToken) { fbToken = d.idToken; document.getElementById("authStatus").textContent = "✓ Verbunden"; loadRoutes(); }
+    else { document.getElementById("authStatus").textContent = "✗ Auth Fehler"; }
   })
-  .catch(function() {
-    document.getElementById("authStatus").textContent = "✗ Netzwerk Fehler";
-  });
+  .catch(function() { document.getElementById("authStatus").textContent = "✗ Netzwerk Fehler"; });
+}
+
+function buildGeoJSON() {
+  var feature = { type: "Feature", properties: { timestamp: new Date().toISOString(), totalDistance: totalDistance }, geometry: { type: "LineString", coordinates: routePoints.map(function(p) { return [p[1], p[0]]; }) } };
+  if (waypoints.length > 0) {
+    feature.properties.waypoints = waypoints.map(function(w) { var obj = { lat: w.lat, lng: w.lng, label: w.label }; if (w.photo) obj.photo = w.photo; return obj; });
+  }
+  return { type: "FeatureCollection", features: [feature] };
+}
+
+function saveToFirebase(name) {
+  if (routePoints.length < 2) { document.getElementById("authStatus").textContent = "✗ Zu wenig Punkte"; return; }
+  document.getElementById("authStatus").textContent = "Speichere... (" + routePoints.length + " Punkte)";
+  if (!fbToken) { document.getElementById("authStatus").textContent = "✗ Nicht angemeldet"; return; }
+  var data = buildGeoJSON();
+  var url = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID + "/databases/(default)/documents/routes";
+  var body = { fields: { type: { stringValue: data.type }, name: { stringValue: name || "Unbenannt" }, timestamp: { stringValue: new Date().toISOString() }, totalDistance: { doubleValue: data.features[0].properties.totalDistance }, geoJSON: { stringValue: JSON.stringify(data) } } };
+  fetch(url, { method: "POST", headers: { "Authorization": "Bearer " + fbToken, "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+    .then(function(res) {
+      if (res.ok) { var id = res.data.name.split("/").pop(); document.getElementById("authStatus").textContent = "✓ " + name + " gespeichert (" + id.slice(0,6) + ")"; loadRoutes(); }
+      else { var msg = res.data.error && res.data.error.message ? res.data.error.message : JSON.stringify(res.data); document.getElementById("authStatus").textContent = "✗ " + msg; }
+    })
+    .catch(function(err) { document.getElementById("authStatus").textContent = "✗ " + err.message; });
 }
 
 function loadRoutes() {
   if (!fbToken) return;
-  var url = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID +
-    "/databases/(default)/documents/routes?orderBy=timestamp%20desc";
+  var url = "https://firestore.googleapis.com/v1/projects/" + PROJECT_ID + "/databases/(default)/documents/routes?orderBy=timestamp%20desc";
   fetch(url, { headers: { "Authorization": "Bearer " + fbToken } })
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    allRoutes = data.documents || [];
-    document.getElementById("authStatus").textContent = "✓ " + allRoutes.length + " Routen";
-    renderRouteList();
-    if (allRoutes.length === 1) showRoute(0);
-  })
-  .catch(function() {
-    document.getElementById("authStatus").textContent = "✗ Lade Fehler";
-  });
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      allRoutes = data.documents || [];
+      document.getElementById("authStatus").textContent = "✓ " + allRoutes.length + " Routen";
+      renderRouteList();
+    })
+    .catch(function() { document.getElementById("authStatus").textContent = "✗ Lade Fehler"; });
 }
 
 function renderRouteList() {
@@ -156,18 +339,14 @@ function renderRouteList() {
     var dist = f.totalDistance ? (f.totalDistance.doubleValue / 1000).toFixed(2) : "?";
     var color = colors[i % colors.length];
     var active = routeLayers[i] ? " active" : "";
-    html +=
-      "<div class='route-item" + active + "' onclick='toggleRoute(" + i + ")'>" +
-        "<div class='name'><span class='color-dot' style='background:" + color + "'></span>" + name + "</div>" +
-        "<div class='meta'>" + dist + " km</div>" +
-      "</div>";
+    html += "<div class='route-item" + active + "' onclick='toggleRoute(" + i + ")'><div class='name'><span class='color-dot' style='background:" + color + "'></span>" + name + "</div><div class='meta'>" + dist + " km</div></div>";
   }
   document.getElementById("routeList").innerHTML = html || "<em>Keine Routen</em>";
 }
 
 function toggleRoute(index) {
-  if (routeLayers[index]) { hideRoute(index); }
-  else { showRoute(index); }
+  if (routeLayers[index]) hideRoute(index);
+  else showRoute(index);
 }
 
 function showRoute(index) {
@@ -177,60 +356,20 @@ function showRoute(index) {
   var coords = geo.features[0].geometry.coordinates;
   var color = colors[index % colors.length];
   var id = "route-" + index;
-
-  map.addSource(id, {
-    type: 'geojson',
-    data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } }
-  });
-  map.addLayer({
-    id: id,
-    type: 'line',
-    source: id,
-    layout: { 'line-join': 'round', 'line-cap': 'round' },
-    paint: { 'line-color': color, 'line-width': 4, 'line-opacity': 0.8 }
-  });
+  map.addSource(id, { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } } });
+  map.addLayer({ id: id, type: 'line', source: id, layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': color, 'line-width': 4, 'line-opacity': 0.8 } });
   routeLayers[index] = id;
-
-  var bounds = coords.reduce(function(b, c) {
-    return [[Math.min(b[0][0], c[0]), Math.min(b[0][1], c[1])],
-            [Math.max(b[1][0], c[0]), Math.max(b[1][1], c[1])]];
-  }, [[coords[0][0], coords[0][1]], [coords[0][0], coords[0][1]]]);
-  if (Object.keys(routeLayers).length === 1) {
-    map.fitBounds(bounds, { padding: 60, maxZoom: 14 });
-  }
-
+  var bounds = coords.reduce(function(b, c) { return [[Math.min(b[0][0], c[0]), Math.min(b[0][1], c[1])], [Math.max(b[1][0], c[0]), Math.max(b[1][1], c[1])]]; }, [[coords[0][0], coords[0][1]], [coords[0][0], coords[0][1]]]);
+  if (Object.keys(routeLayers).filter(function(k) { return k.indexOf("wp_") !== 0; }).length === 1) map.fitBounds(bounds, { padding: 60, maxZoom: 14 });
   var wps = geo.features[0].properties.waypoints;
   if (wps) {
     var wpSource = id + "-wp";
     var wpFeatures = [];
-    for (var i = 0; i < wps.length; i++) {
-      wpFeatures.push({
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: [wps[i].lng, wps[i].lat] },
-        properties: { label: wps[i].label || "HP " + (i + 1), photo: wps[i].photo || null }
-      });
-    }
-    map.addSource(wpSource, {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features: wpFeatures }
-    });
-    map.addLayer({
-      id: wpSource,
-      type: 'circle',
-      source: wpSource,
-      paint: {
-        'circle-color': color, 'circle-radius': 8,
-        'circle-stroke-width': 2, 'circle-stroke-color': '#fff'
-      }
-    });
+    for (var i = 0; i < wps.length; i++) { wpFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [wps[i].lng, wps[i].lat] }, properties: { label: wps[i].label || "HP " + (i + 1), photo: wps[i].photo || null } }); }
+    map.addSource(wpSource, { type: 'geojson', data: { type: 'FeatureCollection', features: wpFeatures } });
+    map.addLayer({ id: wpSource, type: 'circle', source: wpSource, paint: { 'circle-color': color, 'circle-radius': 8, 'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
     routeLayers["wp_" + index] = wpSource;
-
-    map.on('click', wpSource, function(e) {
-      var props = e.features[0].properties;
-      var html = "<b>" + props.label + "</b>";
-      if (props.photo) html += "<br><img src='" + props.photo + "' style='width:150px;border-radius:8px;margin-top:4px'>";
-      new maplibregl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
-    });
+    map.on('click', wpSource, function(e) { var props = e.features[0].properties; var html = "<b>" + props.label + "</b>"; if (props.photo) html += "<br><img src='" + props.photo + "' style='width:150px;border-radius:8px;margin-top:4px'>"; new maplibregl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map); });
     map.on('mouseenter', wpSource, function() { map.getCanvas().style.cursor = 'pointer'; });
     map.on('mouseleave', wpSource, function() { map.getCanvas().style.cursor = ''; });
   }
@@ -239,17 +378,9 @@ function showRoute(index) {
 
 function hideRoute(index) {
   var id = routeLayers[index];
-  if (id) {
-    map.removeLayer(id);
-    map.removeSource(id);
-    delete routeLayers[index];
-  }
+  if (id) { map.removeLayer(id); map.removeSource(id); delete routeLayers[index]; }
   var wpId = routeLayers["wp_" + index];
-  if (wpId) {
-    map.removeLayer(wpId);
-    map.removeSource(wpId);
-    delete routeLayers["wp_" + index];
-  }
+  if (wpId) { map.removeLayer(wpId); map.removeSource(wpId); delete routeLayers["wp_" + index]; }
   renderRouteList();
 }
 
