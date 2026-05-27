@@ -35,7 +35,7 @@ body, html { margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100%
   cursor: pointer; display: none; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
 }
 #btnStreetview {
-  position: absolute; bottom: 90px; left: 50%; transform: translateX(42px);
+  position: absolute; bottom: 90px; left: 50%; margin-left: 32px;
   width: 44px; height: 44px; border: none; background: #1a73e8;
   color: #fff; border-radius: 22px; font-size: 18px; z-index: 9999;
   cursor: pointer; display: none; box-shadow: 0 2px 10px rgba(0,0,0,0.3);
@@ -66,6 +66,7 @@ body, html { margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100%
   #btnRecord { left: 118px; width: 100px; }
   #btn3d { left: 226px; width: 70px; font-size: 11px; }
   #btnWaypoint { bottom: 72px; width: 48px; height: 48px; font-size: 18px; }
+  #btnStreetview { bottom: 72px; margin-left: 28px; width: 48px; height: 48px; line-height: 48px; font-size: 16px; }
 }
 </style>
 </head>
@@ -74,6 +75,7 @@ body, html { margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100%
   <h2>Route 3D</h2>
   <div id="authStatus">Verbinde...</div>
   <div id="gpsInfo">GPS aus</div>
+  <button id="btnSvSidebar" onclick="openStreetView()" style="display:none;background:#1a73e8;color:#fff;border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px;margin-bottom:8px;width:100%">👁 Street View an Position</button>
   <div class="recording-info" id="recordingInfo">
     <div><span class="label">Strecke</span><span class="value" id="recDist">0,00 km</span></div>
     <div><span class="label">Punkte</span><span class="value" id="recPoints">0</span></div>
@@ -166,6 +168,7 @@ function toggleGPS() {
     document.getElementById("btnGps").className = "btn-overlay";
     document.getElementById("btnRecord").style.display = "none";
     document.getElementById("btnStreetview").style.display = "none";
+    document.getElementById("btnSvSidebar").style.display = "none";
     document.getElementById("gpsInfo").textContent = "GPS aus";
     map.getSource('gps-marker').setData({ type: 'FeatureCollection', features: [] });
     return;
@@ -189,6 +192,7 @@ function startWatching(highAccuracy) {
         document.getElementById("btnGps").className = "btn-overlay active";
         document.getElementById("btnRecord").style.display = "block";
         document.getElementById("btnStreetview").style.display = "block";
+        document.getElementById("btnSvSidebar").style.display = "block";
       }
       lastLat = lat; lastLng = lng;
       map.getSource('gps-marker').setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] } }] });
