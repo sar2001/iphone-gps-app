@@ -103,7 +103,7 @@ var map = new maplibregl.Map({
     },
     layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
   },
-  center: [10.4515, 51.1657], zoom: 2, pitch: 0, bearing: 0, antialias: true
+  center: [0, 0], zoom: 1, pitch: 0, bearing: 0, antialias: true
 });
 map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
 
@@ -193,7 +193,7 @@ function startWatching(highAccuracy) {
         document.getElementById("btnRecord").style.display = "block";
         document.getElementById("btnStreetview").style.display = "block";
         document.getElementById("btnSvSidebar").style.display = "block";
-        map.flyTo({ center: [lng, lat], zoom: 16, pitch: 60, duration: 3000 });
+        map.flyTo({ center: [lng, lat], zoom: 18, pitch: 60, duration: 3000 });
       } else {
         map.setCenter([lng, lat]);
       }
