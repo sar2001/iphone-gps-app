@@ -193,7 +193,7 @@ function startWatching(highAccuracy) {
         document.getElementById("btnRecord").style.display = "block";
         document.getElementById("btnStreetview").style.display = "block";
         document.getElementById("btnSvSidebar").style.display = "block";
-        map.flyTo({ center: [lng, lat], zoom: 18, pitch: 60, duration: 3000 });
+        map.jumpTo({ center: [lng, lat], zoom: 16, pitch: 60 });
       } else {
         map.setCenter([lng, lat]);
       }
