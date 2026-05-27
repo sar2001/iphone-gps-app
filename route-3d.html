@@ -194,10 +194,11 @@ function startWatching(highAccuracy) {
         document.getElementById("btnStreetview").style.display = "block";
         document.getElementById("btnSvSidebar").style.display = "block";
         map.flyTo({ center: [lng, lat], zoom: 16, pitch: 60 });
+      } else {
+        map.setCenter([lng, lat]);
       }
       lastLat = lat; lastLng = lng;
       map.getSource('gps-marker').setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] } }] });
-      map.setCenter([lng, lat]);
       if (isRecording) {
         var last = routePoints.length > 0 ? routePoints[routePoints.length - 1] : null;
         if (last) totalDistance += calcDistance(last[0], last[1], lat, lng);
