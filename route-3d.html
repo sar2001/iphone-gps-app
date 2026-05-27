@@ -193,6 +193,7 @@ function startWatching(highAccuracy) {
         document.getElementById("btnRecord").style.display = "block";
         document.getElementById("btnStreetview").style.display = "block";
         document.getElementById("btnSvSidebar").style.display = "block";
+        map.flyTo({ center: [lng, lat], zoom: 16, pitch: 60 });
       }
       lastLat = lat; lastLng = lng;
       map.getSource('gps-marker').setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] } }] });
