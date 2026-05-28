@@ -162,7 +162,9 @@ function toggleVoice() {
     var text = e.results[0][0].transcript.toLowerCase().trim();
     document.getElementById("voiceStatus").textContent = "🎤 \"" + text + "\"";
     setTimeout(function() { document.getElementById("voiceStatus").textContent = "🎤 Höre..."; }, 2000);
-    if (text.indexOf("start") === 0 || text.indexOf("aufzeichnung") === 0 || text.indexOf("recording") === 0) {
+    if (text.indexOf("gps") >= 0 || text === "start") {
+      toggleGPS();
+    } else if (text.indexOf("aufzeichnung") === 0 || text.indexOf("recording") === 0) {
       if (!gpsActive) { toggleGPS(); }
       setTimeout(function() { if (!isRecording) toggleRecording(); }, 500);
     } else if (text.indexOf("stopp") === 0 || text.indexOf("stop") === 0 || text.indexOf("ende") === 0) {
@@ -173,10 +175,8 @@ function toggleVoice() {
       openStreetView();
     } else if (text.indexOf("satellit") === 0 || text.indexOf("sat") === 0) {
       toggleSatellite();
-    } else if (text.indexOf("3d") >= 0 || text.indexOf("3-d") >= 0 || text.indexOf("dreidimensional") >= 0 || text.indexOf("3d an") >= 0 || text.indexOf("3d aus") >= 0) {
+    } else if (text.indexOf("3d") >= 0 || text.indexOf("3-d") >= 0 || text.indexOf("dreidimensional") >= 0) {
       toggle3D();
-    } else if (text.indexOf("gps") >= 0 || text.indexOf("gps start") >= 0 || text.indexOf("gps stopp") >= 0) {
-      toggleGPS();
     }
     document.getElementById("voiceStatus").textContent = "🎤 \"" + text + "\" ✓";
     setTimeout(function() { document.getElementById("voiceStatus").textContent = "🎤 Höre..."; }, 3000);
