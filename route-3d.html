@@ -165,7 +165,9 @@ function toggleVoice() {
     } else if (text.indexOf("street") === 0 || text.indexOf("straße") === 0) {
       openStreetView();
     } else if (text.indexOf("satellit") === 0 || text.indexOf("sat") === 0) {
-      toggleSatellite();
+      if (!isSatellite) toggleSatellite();
+    } else if (text === "karte" || text.indexOf("kartenansicht") === 0) {
+      if (isSatellite) toggleSatellite();
     } else if (text.indexOf("3d") >= 0 || text.indexOf("3-d") >= 0 || text.indexOf("dreidimensional") >= 0) {
       toggle3D();
     }
