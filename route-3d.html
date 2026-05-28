@@ -199,7 +199,7 @@ function startVoice() {
   };
   try { voiceRec.start(); } catch(e) { document.getElementById("voiceStatus").textContent = "🎤 " + e.message; setTimeout(function() { document.getElementById("voiceStatus").style.display = "none"; }, 3000); stopVoice(); return; }
   var to = voiceContinuous ? 30000 : 10000;
-  voiceTimeout = setTimeout(function() { document.getElementById("voiceStatus").textContent = voiceContinuous ? "🎤 Keine Sprache – höre weiter..." : "🎤 Keine Sprache erkannt"; if (!voiceContinuous) { setTimeout(function() { document.getElementById("voiceStatus").style.display = "none"; }, 2000); stopVoice(); } else { restartVoice(); } }, to);
+  voiceTimeout = setTimeout(function() { document.getElementById("voiceStatus").textContent = voiceContinuous ? "🎤 Höre weiter..." : "🎤 Keine Sprache erkannt"; if (!voiceContinuous) { setTimeout(function() { document.getElementById("voiceStatus").style.display = "none"; }, 2000); stopVoice(); } }, to);
 }
 
 function restartVoice() {
