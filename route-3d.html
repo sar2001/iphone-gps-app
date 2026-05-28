@@ -72,7 +72,7 @@ body, html { margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100%
 </head>
 <body>
 <div id="sidebar">
-  <h2>Route 3D</h2>
+  <h2>Route 3D <button id="btnSat" onclick="toggleSatellite()" style="float:right;background:#555;color:#fff;border:none;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:12px">Satellit</button></h2>
   <div id="authStatus">Verbinde...</div>
   <div id="gpsInfo">GPS aus</div>
   <button id="btnSvSidebar" onclick="openStreetView()" style="display:none;background:#1a73e8;color:#fff;border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px;margin-bottom:8px;width:100%">👁 Street View an Position</button>
@@ -99,9 +99,13 @@ var map = new maplibregl.Map({
     version: 8,
     sources: {
       osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '&copy; OpenStreetMap' },
+      satellite: { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, attribution: '&copy; Esri' },
       terrain: { type: 'raster-dem', tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 15, encoding: 'terrarium' }
     },
-    layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
+    layers: [
+      { id: 'osm', type: 'raster', source: 'osm' },
+      { id: 'satellite', type: 'raster', source: 'satellite', layout: { visibility: 'none' } }
+    ]
   },
   center: [0, 0], zoom: 1, pitch: 0, bearing: 0, antialias: true
 });
@@ -124,6 +128,15 @@ map.on('load', function() {
   map.on('mouseenter', 'recording-wps', function() { map.getCanvas().style.cursor = 'pointer'; });
   map.on('mouseleave', 'recording-wps', function() { map.getCanvas().style.cursor = ''; });
 });
+
+var isSatellite = false;
+function toggleSatellite() {
+  isSatellite = !isSatellite;
+  map.setLayoutProperty('osm', 'visibility', isSatellite ? 'none' : 'visible');
+  map.setLayoutProperty('satellite', 'visibility', isSatellite ? 'visible' : 'none');
+  document.getElementById("btnSat").textContent = isSatellite ? "Karte" : "Satellit";
+  document.getElementById("btnSat").style.background = isSatellite ? "#007aff" : "#555";
+}
 
 var is3D = true;
 function toggle3D() {
