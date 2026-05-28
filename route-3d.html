@@ -137,6 +137,7 @@ map.on('load', function() {
 var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 var voiceRec = null;
 var isListening = false;
+var voiceTimeout = null;
 
 function toggleVoice() {
   if (!SpeechRecognition) { alert("Spracherkennung nicht verfügbar"); return; }
@@ -144,15 +145,14 @@ function toggleVoice() {
   isListening = true;
   document.getElementById("btnVoiceSidebar").style.background = "#ff3b30";
   document.getElementById("voiceStatus").style.display = "block";
-  document.getElementById("voiceStatus").textContent = "🎤 Höre...";
+  document.getElementById("voiceStatus").textContent = "🎤 Höre... (Mikrofonerlaubnis nötig)";
   voiceRec = new SpeechRecognition();
   voiceRec.lang = "de-DE";
   voiceRec.continuous = false;
   voiceRec.interimResults = false;
   voiceRec.onresult = function(e) {
+    clearTimeout(voiceTimeout);
     var text = e.results[0][0].transcript.toLowerCase().trim();
-    document.getElementById("voiceStatus").textContent = "🎤 \"" + text + "\"";
-    setTimeout(function() { document.getElementById("voiceStatus").textContent = "🎤 Höre..."; }, 2000);
     if (text.indexOf("gps") >= 0 || text === "start") {
       toggleGPS();
     } else if (text.indexOf("aufzeichnung") === 0 || text.indexOf("recording") === 0) {
@@ -170,21 +170,24 @@ function toggleVoice() {
       toggle3D();
     }
     document.getElementById("voiceStatus").textContent = "🎤 \"" + text + "\" ✓";
-    setTimeout(function() { document.getElementById("voiceStatus").textContent = "🎤 Höre..."; }, 3000);
     stopVoice();
   };
   voiceRec.onerror = function(e) {
-    document.getElementById("voiceStatus").textContent = "🎤 Fehler: " + e.error;
-    setTimeout(function() { document.getElementById("voiceStatus").textContent = "🎤 Höre..."; }, 3000);
+    clearTimeout(voiceTimeout);
+    document.getElementById("voiceStatus").textContent = "🎤 " + (e.error === "not-allowed" ? "Mikrofon verweigert" : e.error);
+    setTimeout(function() { document.getElementById("voiceStatus").style.display = "none"; }, 3000);
     stopVoice();
   };
   voiceRec.onend = function() {
+    clearTimeout(voiceTimeout);
     if (isListening) stopVoice();
   };
-  voiceRec.start();
+  try { voiceRec.start(); } catch(e) { document.getElementById("voiceStatus").textContent = "🎤 " + e.message; setTimeout(function() { document.getElementById("voiceStatus").style.display = "none"; }, 3000); stopVoice(); return; }
+  voiceTimeout = setTimeout(function() { document.getElementById("voiceStatus").textContent = "🎤 Keine Sprache erkannt"; setTimeout(function() { document.getElementById("voiceStatus").style.display = "none"; }, 2000); stopVoice(); }, 10000);
 }
 
 function stopVoice() {
+  clearTimeout(voiceTimeout);
   isListening = false;
   if (voiceRec) { try { voiceRec.stop(); } catch(e) {} voiceRec = null; }
   document.getElementById("btnVoiceSidebar").style.background = "#555";
