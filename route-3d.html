@@ -202,10 +202,16 @@ function startVoice() {
   voiceTimeout = setTimeout(function() { document.getElementById("voiceStatus").textContent = voiceContinuous ? "🎤 Höre weiter..." : "🎤 Keine Sprache erkannt"; if (!voiceContinuous) { setTimeout(function() { document.getElementById("voiceStatus").style.display = "none"; }, 2000); stopVoice(); } }, to);
 }
 
+var voiceRestarting = false;
 function restartVoice() {
-  if (voiceRec) { try { voiceRec.stop(); } catch(e) {} voiceRec = null; }
+  if (voiceRestarting) return;
+  voiceRestarting = true;
   clearTimeout(voiceTimeout);
+  if (voiceRec) { try { voiceRec.stop(); } catch(e) {} voiceRec = null; }
+  var c = voiceContinuous;
   startVoice();
+  voiceContinuous = c;
+  voiceRestarting = false;
 }
 
 function toggleVoice() {
