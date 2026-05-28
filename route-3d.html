@@ -166,6 +166,10 @@ function toggleVoice() {
       openStreetView();
     } else if (text.indexOf("satellit") === 0 || text.indexOf("sat") === 0) {
       if (!isSatellite) toggleSatellite();
+    } else if (text.indexOf("over") >= 0 && text.indexOf("out") >= 0) {
+      document.getElementById("voiceStatus").textContent = "🎤 Sprachsteuerung aus";
+      stopVoice();
+      return;
     } else if (text === "karte" || text.indexOf("kartenansicht") === 0) {
       if (isSatellite) toggleSatellite();
     } else if (text.indexOf("3d") >= 0 || text.indexOf("3-d") >= 0 || text.indexOf("dreidimensional") >= 0) {
